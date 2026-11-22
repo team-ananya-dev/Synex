@@ -1,0 +1,33 @@
+# Render blueprint (free plan). Secrets are entered in the Render dashboard, never committed.
+# After the first deploy, copy the two public URLs into the env vars marked "URL" and redeploy the web service.
+services:
+  - type: web
+    name: synex-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/api.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: CRUSTDATA_API_KEY
+        sync: false
+      - key: SYNEX_ANTHROPIC_KEY
+        sync: false
+      - key: SYNEX_OPERATOR_KEY        # operator pages need this key on the hosted site
+        sync: false
+      - key: SYNEX_WEB_ORIGINS         # URL of synex-web, for example https://synex-web.onrender.com
+        sync: false
+      - key: SYNEX_EXPERT_BASE_URL     # URL of synex-web again: the private expert links point there
+        sync: false
+  - type: web
+    name: synex-web
+    runtime: node
+    plan: free
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    startCommand: npm start -- -p $PORT
+    envVars:
+      - key: NEXT_PUBLIC_SYNEX_API     # URL of synex-api, for example https://synex-api.onrender.com
+        sync: false
+      - key: NODE_VERSION
+        value: "20"
