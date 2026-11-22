@@ -277,3 +277,11 @@ Next: company-picker fix (competitors dropped as "not confident").
 Decisions: the report states that in this build the answers come from team members playing the candidates (README and PDF). New dependencies `reportlab` and `pypdf` in `server/requirements/expert.txt`; credits and font download commands in the README.
 Blocked on: Render redeploy to get the new dependency and the report on the hosted site.
 Contracts touched: API.md, EVENTS.md (additive).
+
+## 2026-11-22 18:09 IST ananya company-picker-fix
+Done: fixed the cause of one-company panels (not the rate limit). `server/app/stages/s3_sourcer.py` (Dev's file): the company picker was told to prefer the record that fits the question, so for a competitor or peer it said "not confident" and Dev's ambiguity rule dropped it: 8 of 10 real companies in a test (Delhivery, Shadowfax, Swiggy, Zomato, Flipkart and others). The prompt now asks which record IS the company called X, treats the question as background only, allows the question's industry only to break a tie between same-named records, and says confident=false only if different companies share the name. Result with the real model: 9 of 10 real companies resolve (was 2), and the 3 genuinely ambiguous names (Apollo, Nova, Alpha) are still flagged; BlueDart stays ambiguous because Crustdata's records for it are messy. A first version also had a code override (accept the only exact-name record when the model hedged); testing showed it turned Apollo, Nova and Alpha into confident guesses, so it was removed: the model's doubt is never overridden. Web: an unsearched company now shows its reason instead of "not found in Crustdata" (`web/src/app/(main)/cases/[id]/CaseView.tsx`). 169 tests pass (1 new).
+In progress: nothing.
+Next: redeploy on Render and test the report and question assignment on the hosted site.
+Decisions: edited Dev's s3 at Ananya's request.
+Blocked on: Render redeploy.
+Contracts touched: none.

@@ -17,41 +17,11 @@ PICK_SCHEMA = {
 }
 
 
-_NOISE = {"pvt", "ltd", "limited", "private", "inc", "llc", "corp", "corporation", "co", "company", "the", "india", "express", "courier"}
-
-
-def _norm_name(name: str | None) -> str:
-    words = "".join(ch.lower() if ch.isalnum() else " " for ch in (name or "")).split()
-    return " ".join(w for w in words if w not in _NOISE)
-
-
-def _size_floor(size: str | None) -> int:
-    """Lower bound of Crustdata's employee range ("1001-5000" -> 1001, "10001+" -> 10001); 0 when not stated."""
-    import re
-    m = re.match(r"\s*(\d+)", size or "")
-    return int(m.group(1)) if m else 0
-
-
-def clear_winner(name: str, shortlist: list[dict]) -> dict | None:
-    """The one record that is plainly the company called `name`: the only record with that name, or among several
-    the one at least twice as large as the next. Several equally large records with the same name stay ambiguous."""
-    wanted = _norm_name(name)
-    same = [c for c in shortlist if wanted and _norm_name(c["name"]) == wanted]
-    if len(same) == 1:
-        return same[0]
-    if len(same) > 1:
-        ranked = sorted(same, key=lambda c: _size_floor(c["size"]), reverse=True)
-        top, second = _size_floor(ranked[0]["size"]), _size_floor(ranked[1]["size"])
-        if top >= 11 and top >= 2 * second:
-            return ranked[0]
-    return None
-
-
 def resolve_company(conn, client: CrustdataClient, name: str, context: str, case_id: str | None):
     """Return (chosen candidate, all candidates, pick info). The model only chooses among ids Crustdata returned and
     the choice is validated in code. The question is background only: a competitor or peer is not "unsure" just
-    because the question is about another company. If the model hedges but one record is plainly that company, code
-    accepts it; genuinely ambiguous names (equal records sharing the name) stay ambiguous."""
+    because the question is about another company; the model is unsure only when records of different companies
+    share the name. The runner never guesses: an unsure pick is reported as ambiguous and not searched."""
     cands, _ = company_api.identify(client, name)
     if not cands:
         raise LookupError(f"no company found for {name!r}")
@@ -69,23 +39,17 @@ def resolve_company(conn, client: CrustdataClient, name: str, context: str, case
         f"{', '.join(c['industries'][:3])} | {c['description']}" for c in shortlist)
     reply, call_id = llm.call_json(
         conn, purpose="resolve_company", case_id=case_id, validate=check, schema=PICK_SCHEMA,
-        system="You pick which record is the company with the given name. Use only the listed ids. Choose the record that is "
-               "clearly the main company of that name: a matching name, an official website, normally the largest. The question "
-               "is background only: the company may be a competitor or peer being researched for comparison, so never judge "
-               "the record by whether it fits the question, and never say confident=false because the question is about another "
-               "company. Say confident=false only if two or more records could equally be this company, for example different "
-               "companies that share the name.",
+        system="You pick which record is the company with the given name. Use only the listed ids. A record is a match when its "
+               "name and website fit the name asked for. The question is background: never reject a record because the question "
+               "is about a different company (the company may be a competitor or peer researched for comparison). But when "
+               "several records share the name or start with it and belong to clearly different companies (for example Apollo "
+               "Hospitals and Apollo Tyres), use the question's industry and country only to break the tie, and say confident=false "
+               "if it still does not settle which one is meant. Do not pick a record just because it is the largest or most "
+               "prominent. Say confident=true only when one record is clearly the company asked for.",
         user=f"Company to find: {name}\nBackground, the customer's question (do not match against it): {context}\nCandidates:\n{lines}",
     )
     chosen = next(c for c in shortlist if c["company_id"] == reply["company_id"])
-    pick = {"method": "model", "llm_call_id": call_id, **reply}
-    if not reply["confident"]:
-        winner = clear_winner(name, shortlist)
-        if winner is not None:
-            chosen = winner
-            pick = {"method": "name_match", "llm_call_id": call_id, "company_id": winner["company_id"], "confident": True,
-                    "reason": f"the model hedged, but {winner['name']} is the only record that is plainly this company (matching name, clearly the largest)"}
-    return chosen, cands, pick
+    return chosen, cands, {"method": "model", "llm_call_id": call_id, **reply}
 
 
 def _months_between(a: str, b: str) -> int:

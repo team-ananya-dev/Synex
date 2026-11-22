@@ -107,3 +107,25 @@ def test_panel_is_spread_across_companies_before_a_second_person_from_one():
     only_a = [{"person_id": i, "company_id": "A"} for i in range(4)]
     assert [p["person_id"] for p in spread_by_company(only_a, 2)] == [0, 1]            # one company: plain top 2
     assert spread_by_company([], 3) == []
+
+
+def test_company_picker_treats_the_question_as_background_and_never_overrides_the_model(monkeypatch):
+    """A peer company must not be judged against the question (that made every competitor 'not confident'), and the
+    model's own 'unsure' is respected: the runner reports it as ambiguous instead of guessing."""
+    from app.stages import s3_sourcer
+    seen = {}
+    cands = [{"company_id": i, "name": n, "domain": d, "year_founded": 2000, "size": "1001-5000", "industries": [], "description": "", "confidence": 1}
+             for i, (n, d) in enumerate([("Delhivery", "delhivery.com"), ("Delhivery courier", None)], start=1)]
+    monkeypatch.setattr(s3_sourcer.company_api, "identify", lambda client, name: (cands, "call"))
+
+    def fake(conn, **kw):
+        seen.update(kw)
+        return {"company_id": 1, "reason": "r", "confident": seen.get("answer_confident", True)}, "llm1"
+    monkeypatch.setattr(s3_sourcer.llm, "call_json", fake)
+    chosen, _, pick = s3_sourcer.resolve_company(None, None, "Delhivery", "How does Xpressbees run its hubs?", "c1")
+    assert "Company to find: Delhivery" in seen["user"] and "do not match against it" in seen["user"]
+    assert "never reject a record because the question" in seen["system"]
+    assert chosen["name"] == "Delhivery" and pick["confident"] is True and pick["method"] == "model"
+    seen["answer_confident"] = False
+    chosen, _, pick = s3_sourcer.resolve_company(None, None, "Apollo", "x", "c1")
+    assert pick["confident"] is False and pick["method"] == "model"       # no code override of the model's doubt
