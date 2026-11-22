@@ -66,3 +66,52 @@ Body `{"approver": "dev"}` or `{"approver": "ananya"}` (case-insensitive). This 
 - `403` if the approver is not a registered team member, `404` for an unknown id, `409` if the draft was already decided.
 - Approve sends through the allowlist gate: `SENT` on success; `BLOCKED` (with `block_reason`) if the address is not on the teammate allowlist, which is a visible refusal and an audit event; `FAILED` if the mail server could not be reached. Show `block_reason` to the operator.
 - Nothing is sent without this click, and nothing is retried silently.
+
+## Changes 2026-11-22 (Dev): customer routes, plan approval, ledger, audit and cost log
+Read this section first: it changes the case lifecycle and says which routes a customer screen may use.
+
+### Operator routes vs customer routes
+- **Operator routes** show real people's names, profile links and addresses: `GET /cases/{id}`, `GET /cases/{id}/events`, `GET /approvals`, `GET /audit/*`. Use them only on operator screens (approval queue, audit trail, admin). Never on a customer screen.
+- **Customer routes** never contain a name, headline, profile URL, city or email: `GET /customer/cases`, `GET /customer/cases/{id}`, `GET /customer/cases/{id}/events`, `POST /customer/cases/{id}/approve-plan`. The customer screens use only these. `POST /cases` (ask a question) is shared.
+- Experts appear to the customer only as an anonymised card with an opaque `ref` (for example `E3fa91c20`), stable inside one case.
+
+### New lifecycle (replaces the "runs straight through" behaviour)
+1. `POST /cases` -> the job screens the question and plans (stages 1 and 2), sets state `PLANNED` and emits `job.paused` ("waiting for the customer to approve the plan and the spend"). **No Crustdata credit has been spent.** A refused question ends as `REFUSED`.
+2. The customer reads the plan and the `quote`, then `POST /customer/cases/{id}/approve-plan`. This places the simulated hold and starts sourcing.
+3. The job runs stages 3 to 6, goes `SOURCING` then `AWAITING_APPROVAL`, and emits `job.paused` ("outreach drafts are waiting for approval").
+4. Team members approve drafts (`/approvals`). Later stages (collecting, synthesis) are not built yet.
+
+The event stream closes at every `job.paused`. After approving the plan, open the stream again with `?after=<last event id>`.
+
+### `GET /customer/cases/{id}`
+```
+{
+  "id", "question", "state", "refusal_reason", "created_at",
+  "plan": [{"index", "text", "expertise", "title_keywords", "target_companies": [{"name", "basis"}]}] | null,
+  "quote": {"subquestions", "price_per_subquestion", "hold_amount", "currency": "USD (simulated)"} | null,   // only while PLANNED
+  "approval": {"panel_size", "budget", "hold"} | null,
+  "screening": {"<index>": {"considered", "pass", "review", "fail", "excluded": [{"ref", "reasons": [str]}]}},
+  "panel": {"<index>": [{"ref", "role", "company", "tenure_months", "left_year", "country", "fit", "score", "reason", "evidence": [str], "evidence_hidden": int}]},
+  "outreach": {"DRAFTED": n, "SENT": n, "REJECTED": n, ...},
+  "ledger": {"balance": {"held", "captured", "released", "remaining", "currency"}, "entries": [{"kind", "amount", "currency", "ref", "note", "created_by", "created_at"}]},
+  "cost": {"crustdata_credits", "model_usd", "credit_cap"}
+}
+```
+`screening.excluded` is how the customer sees that a person was removed and why (no name). `panel` is best first and only holds people who passed the rules and the relevance cut-off. `evidence_hidden` counts evidence snippets that came from the person's self-written headline: they are left out of the card because a headline is easy to search for, so the UI may say "n more signals from the profile summary". `country` comes from the profile's structured location. Every money amount is simulated and says so in `currency`; show "simulated" next to it.
+
+### `POST /customer/cases/{id}/approve-plan`
+Body `{"panel_size": 1 to 5, "budget": number}`. `panel_size` is experts contacted per sub-question. Returns `{"id", "state": "PLANNED", "hold": <quote>}`.
+`404` unknown case, `409` if the case is not `PLANNED` (already approved, refused, failed), `422` if `budget` is below `quote.hold_amount` (the message names the amount) or `panel_size` is out of range.
+In development only the first 2 sub-questions are sourced, so the quote covers 2; with `SYNEX_DEMO=1` it covers all of them.
+
+### `GET /customer/cases/{id}/events`
+The same events as the operator stream with personal data removed: `stage.done` results are replaced by customer-safe summaries (`s3_sourcer`: companies and a count; `s4_people_screen`: counts; `s5_ranker` and `s5b_enrich_rerank`: `{"panel": [cards], "left_off": n}`; `s6_outreach_writer`: `{"drafts": n}`), `approval.requested` carries a `ref`, `mail.sent` carries no address.
+
+### Audit trail and cost log (operator)
+- `GET /audit/events?case_id=&after=&limit=` -> `[{"id", "case_id", "type", "payload", "at", "prev_hash", "hash"}]`, oldest first.
+- `GET /audit/verify` -> `{"ok", "first_bad_event_id", "events_checked"}`. Recomputes the whole hash chain; `ok: false` names the first changed event.
+- `GET /cases/{id}/costs` -> `{"crustdata_calls": [...], "llm_calls": [...], "totals": {"crustdata_credits", "model_usd"}}` with call ids, purpose, credits or tokens and dollars. Prompts and responses are not included.
+- `GET /costs` -> totals across all cases and the remaining model budget (`model_budget_usd`, `model_remaining_usd`).
+
+### Expert page hand-off (for `server/app/routes/expert.py`)
+`from app.actions.queue import expert_context`; `expert_context(conn, token)` returns `None` for an unknown token, else `{"outreach_id", "case_id", "person_id", "first_name", "status", "subquestions": [{"index", "text"}]}`. Only accept a link whose `status` is `SENT`. It holds no customer information and nothing about other experts. Store responses with `case_id`, `person_id`, `outreach_id` and the sub-question index so the memo can cite them.

@@ -29,3 +29,7 @@ Stage name `s5b_enrich_rerank` (after `s5_ranker`). Fit labels in ranked items: 
 ## Added 2026-11-22 (stage 6)
 
 Stage name `s6_outreach_writer`. Case state `AWAITING_APPROVAL` is now set by the job runner. Outreach statuses: `DRAFTED`, `SENT`, `REJECTED`, `BLOCKED`, `FAILED`. Approvers: `dev`, `ananya`.
+
+## Added 2026-11-22 (plan approval and ledger)
+
+`PLANNED` is now a waiting state: the job pauses there until the customer approves the plan. Ledger kinds: `HOLD`, `CAPTURE`, `RELEASE`. Ledger currency is always `USD (simulated)`.
