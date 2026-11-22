@@ -105,3 +105,23 @@ def mailpit_api() -> str:
 def send_delay_seconds() -> float:
     """Kill test only: a pause between invitation sends, so the process can be killed mid-batch. 0 normally."""
     return float(os.environ.get("SYNEX_SEND_DELAY_SECONDS", "0"))
+
+
+def run_time_limit_seconds() -> float:
+    """Wall-clock limit for one background phase of a case (planning, or sourcing to drafts)."""
+    return float(os.environ.get("SYNEX_RUN_TIME_LIMIT_SECONDS", "900"))
+
+
+def case_usd_cap() -> float:
+    """Model spend one case may use, in dollars."""
+    return float(os.environ.get("SYNEX_CASE_USD_CAP", "1.0"))
+
+
+def usd_inr() -> float:
+    """Rupees per dollar for the cost log. A configured rate, not a live quote."""
+    return float(os.environ.get("SYNEX_USD_INR", "85"))
+
+
+def inr_per_credit() -> float:
+    """Rupees per Crustdata credit. 0 until the team sets the rate it pays; the credits are shown either way."""
+    return float(os.environ.get("SYNEX_INR_PER_CREDIT", "0"))

@@ -74,6 +74,10 @@ def call_json(
     for attempt in (1, 2):
         if spent_usd(conn) >= BUDGET_USD:
             raise BudgetExceeded(f"model spend {spent_usd(conn):.2f} USD reached the {BUDGET_USD} USD budget")
+        if case_id:
+            case_spent = float(conn.execute("SELECT COALESCE(SUM(cost_usd),0) c FROM llm_calls WHERE case_id=?", (case_id,)).fetchone()["c"])
+            if case_spent >= config.case_usd_cap():
+                raise BudgetExceeded(f"this case's model spend {case_spent:.2f} USD reached its {config.case_usd_cap()} USD limit")
         resp = client.messages.create(
             model=model, max_tokens=max_tokens, system=system, messages=messages,
             tools=[tool], tool_choice={"type": "tool", "name": "respond"},

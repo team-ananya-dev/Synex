@@ -19,6 +19,7 @@ const STATE_TONE: Record<CaseState, keyof typeof TONE> = {
   DELIVERED: "emerald",
   REFUSED: "red",
   FAILED: "red",
+  LIMIT_REACHED: "amber",
 };
 
 export function Pill({ tone, children, className = "" }: { tone: keyof typeof TONE; children: React.ReactNode; className?: string }) {

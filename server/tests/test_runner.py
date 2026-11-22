@@ -249,3 +249,36 @@ def test_enrichment_failure_keeps_the_first_pass_ranking(api, monkeypatch):
     assert view["state"] == "AWAITING_APPROVAL"
     assert view["stages"]["s5b_enrich_rerank"]["1"]["enrich_skipped"] is True
     assert any(e["type"] == "enrich.skipped" for e in db_events(cid))
+
+
+def test_limits_stop_the_case_cleanly_as_limit_reached(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_CASE_CREDIT_CAP", "0.5")          # the first search costs more than this
+    cid = start(client)
+    assert client.get(f"/cases/{cid}").json()["state"] == "LIMIT_REACHED"
+    states = [e for e in db_events(cid) if e["type"] == "case.state"]
+    assert "credits" in states[-1]["reason"]
+
+
+def test_time_limit_stops_before_the_next_stage(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_RUN_TIME_LIMIT_SECONDS", "-1")
+    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    v = client.get(f"/cases/{cid}").json()
+    assert v["state"] == "LIMIT_REACHED" and "s1_question_screen" not in v["stages"]
+
+
+def test_case_model_spend_limit(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_CASE_USD_CAP", "0.0000001")       # the first model call already passes it
+    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    v = client.get(f"/cases/{cid}").json()
+    assert v["state"] == "LIMIT_REACHED" and "s2_decomposer" not in v["stages"]
+
+
+def test_cost_is_shown_in_rupees(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_USD_INR", "85")
+    cid = start(client)
+    c = client.get(f"/customer/cases/{cid}").json()["cost"]
+    assert c["model_inr"] == round(c["model_usd"] * 85, 2) and c["total_inr"] >= c["model_inr"]

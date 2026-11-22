@@ -7,6 +7,8 @@ Every stage emits stage.started and stage.done (with its result) on the audit ch
 routes replay those events to the browser.
 """
 import json
+import threading
+import time
 import uuid
 from datetime import date, datetime, timezone
 
@@ -47,6 +49,13 @@ class StageFailed(RuntimeError):
     pass
 
 
+class LimitReached(RuntimeError):
+    pass
+
+
+_phase = threading.local()   # when the current background phase started, for the per-run time limit
+
+
 def run_stage(conn, case_id: str, stage: str, fn):
     """Run one stage, or reuse its stored result if it already finished (after a crash or a retry), so no
     finished stage spends credits or sends anything twice."""
@@ -55,6 +64,10 @@ def run_stage(conn, case_id: str, stage: str, fn):
     if done:
         append_event(conn, case_id, "stage.reused", {"stage": stage})
         return json.loads(done["result"])
+    started = getattr(_phase, "started", None)
+    if started is not None and time.monotonic() - started > config.run_time_limit_seconds():
+        raise StageFailed(f"{stage}: time limit") from LimitReached(
+            f"the run passed its {config.run_time_limit_seconds():.0f} s time limit before {stage}")
     append_event(conn, case_id, "stage.started", {"stage": stage})
     try:
         result = fn()
@@ -69,11 +82,18 @@ def run_stage(conn, case_id: str, stage: str, fn):
 
 
 def _guarded(case_id: str, phase) -> None:
+    from ..core.llm import BudgetExceeded
+    from ..crustdata.client import CreditCapExceeded
     conn = db.connect()
+    _phase.started = time.monotonic()
     try:
         phase(conn, case_id)
-    except StageFailed:
-        set_state(conn, case_id, "FAILED")
+    except StageFailed as e:
+        cause = e.__cause__
+        if isinstance(cause, (LimitReached, CreditCapExceeded, BudgetExceeded)):
+            set_state(conn, case_id, "LIMIT_REACHED", reason=str(cause))   # a clean stop, not a crash
+        else:
+            set_state(conn, case_id, "FAILED")
     except Exception as e:  # nothing may leave a case stuck in a running state
         append_event(conn, case_id, "stage.failed", {"stage": "runner", "error": f"{type(e).__name__}: {e}"})
         set_state(conn, case_id, "FAILED")

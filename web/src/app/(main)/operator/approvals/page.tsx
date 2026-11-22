@@ -8,6 +8,7 @@ import { Pill } from "@/components/StateBadge";
 
 const STATUS_TONE: Record<OutreachStatus, "amber" | "emerald" | "zinc" | "red"> = {
   DRAFTED: "amber",
+  APPROVED: "amber",
   SENT: "emerald",
   REJECTED: "zinc",
   BLOCKED: "red",

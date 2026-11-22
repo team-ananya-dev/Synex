@@ -13,7 +13,7 @@ from ..core.events import append_event
 from . import runner, views
 
 router = APIRouter()
-TERMINAL_STATES = {"REFUSED", "FAILED"}
+TERMINAL_STATES = {"REFUSED", "FAILED", "LIMIT_REACHED"}
 
 
 class NewCase(BaseModel):

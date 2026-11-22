@@ -49,3 +49,7 @@ Response screen verdicts: `accepted`, `redacted`, `held`, `rejected`. Stage name
 ## Added 2026-11-22 (Ananya, gap fixes)
 
 Case state `DELIVERED` is now set, by `POST /customer/cases/{id}/close`. Result `status` adds `not sourced`. Result `label` adds `multiple sources, different aspects`.
+
+## Added 2026-11-22 (limits)
+
+Case state `LIMIT_REACHED` (final): the run stopped cleanly at a limit, with the reason in the `case.state` event. Limits, all in `server/app/core/config.py`: `SYNEX_RUN_TIME_LIMIT_SECONDS` (900 per background phase), `SYNEX_CASE_CREDIT_CAP` (25 dev, 250 demo), `SYNEX_CASE_USD_CAP` (1.0 model dollars per case). The customer view's `cost` adds `model_usd_cap`, `time_limit_seconds`, `model_inr`, `crustdata_inr`, `total_inr` and `inr_rates` (`SYNEX_USD_INR` default 85; `SYNEX_INR_PER_CREDIT` default 0 until the team sets the rate it pays). Outreach status `APPROVED` (see API.md, exactly-once).

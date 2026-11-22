@@ -27,7 +27,12 @@ def _case(conn, case_id: str) -> sqlite3.Row:
 def costs(conn, case_id: str) -> dict:
     credits = conn.execute("SELECT COALESCE(SUM(credits),0) c FROM crustdata_calls WHERE case_id=?", (case_id,)).fetchone()["c"]
     usd = conn.execute("SELECT COALESCE(SUM(cost_usd),0) c FROM llm_calls WHERE case_id=?", (case_id,)).fetchone()["c"]
-    return {"crustdata_credits": credits, "model_usd": round(usd, 6), "credit_cap": config.case_credit_cap()}
+    model_inr = usd * config.usd_inr()
+    credits_inr = credits * config.inr_per_credit()
+    return {"crustdata_credits": credits, "model_usd": round(usd, 6), "credit_cap": config.case_credit_cap(),
+            "model_usd_cap": config.case_usd_cap(), "time_limit_seconds": config.run_time_limit_seconds(),
+            "model_inr": round(model_inr, 2), "crustdata_inr": round(credits_inr, 2), "total_inr": round(model_inr + credits_inr, 2),
+            "inr_rates": {"usd_inr": config.usd_inr(), "inr_per_credit": config.inr_per_credit()}}
 
 
 def operator_view(conn, case_id: str) -> dict:
