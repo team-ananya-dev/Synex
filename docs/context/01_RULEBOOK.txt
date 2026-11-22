@@ -1,0 +1,99 @@
+CONTEXTCON 05 · BITS PILANI · PARTICIPANTS ONLY
+
+
+
+
+Participant Rulebook
+     This rulebook is for participants.
+
+
+
+
+Spirit of the event
+ContextCon is a 7-hour build. Teams build a working service from scratch, with their own code, and show that it
+runs.
+
+
+
+1. Eligibility and teams
+1.    Students in their 3rd year or later, in any engineering discipline, can take part.
+2.    Each team has 1 to 4 builders. A team of 1 builder is permitted.
+3.    Each person can be in one team only.
+4.    Each builder brings a laptop, a charger and a college ID.
+
+
+
+2. Hackathon rules
+1.    Teams can prepare ideas, sketches and architecture before the event.
+2.    Teams do not write code before the build starts.
+3.    Code from earlier events, including earlier ContextCon events, is not permitted.
+4.    The build lasts 7 hours. Code starts at the official start time.
+5.    All code goes to the organizer repository that the team receives at kickoff. Teams commit to it throughout the
+      build. The organizers follow each repository during the event.
+6.    Code freeze is at the end of the build. After code freeze, the only permitted code change is the live fix in the
+      finals.
+7.    Each team submits its code, its README, its architecture diagram and its demo video in the organizer
+      repository before code freeze.
+
+
+
+3. AI tools and agents
+1.    Teams can use AI coding tools. Each team must understand its own code. The judges test this in the live fix
+      and the design question.
+2.    Agents interact only with the team’s own environment and permitted APIs.
+3.    Agents never contact real people. Teammates play the client, the vendors, the candidates and other
+      counterparties.
+4.    Each action that cannot be undone, such as a payment or an email, waits for a person’s approval.
+5.    Teams do not attack, overload or interfere with the event’s systems or with other teams’ services.
+
+
+
+
+                                                                                                                         1
+4. Code of conduct
+1.   Participants treat other participants, the organizers, the judges and the venue staff with respect. Harassment of
+     any kind is not permitted.
+2.   Teams do not share code or the hidden content of the event with other teams.
+
+
+
+5. Fair play and disqualification
+The following are unfair means:
+1.  Work by people outside the team. Only registered team members write code, prepare content or operate the
+    service.
+2. Copying code, prompts or content from another team, or sharing them with another team.
+3. Submitting a project built before the event as new work, or code from earlier events.
+4. Hard-coding answers, or making a service return stored results.
+5. Entering results by hand during a run. A person can only approve or reject actions.
+6. Faking a demonstration, for example with recorded output, a mock presented as live, or a result prepared in
+    advance.
+7. Claims in the README or on stage that the service does not do.
+8. Changing commit history, timestamps, logs or cost records.
+9. Trying to obtain the unseen requests or any other hidden content, for example by asking organizers or by
+    accessing their systems.
+10. Sharing API keys or repository access with another team.
+11. Taking part under another person’s name, or as a member of more than one team.
+12. Using open-source code without crediting it in the README. Open-source code is permitted when its licence
+    allows it and the README names it.
+
+The organizers disqualify a team for any of these:
+
+•    An agent that contacts a real person.
+•    Code from earlier events, or code written before the build starts.
+•    An attack on the event’s systems or on another team’s service.
+
+Penalties. Depending on the case, the organizers give a warning, remove part of the work from judging, or
+disqualify the team. The organizers can disqualify a team at any time, including after the results are announced.
+Each team member is responsible for the conduct of the whole team.
+
+
+
+Remember
+The decisions of the organizers and the judges are final. For questions during the event, contact the organizers at
+the help desk.
+
+
+
+
+ContextCon 05 at BITS Pilani Participant Rulebook                                                                     2
+

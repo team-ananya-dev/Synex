@@ -1,0 +1,27 @@
+# secrets
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# node
+node_modules/
+.next/
+dist/
+
+# local data
+*.db
+*.sqlite
+*.sqlite3
+
+# os/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
