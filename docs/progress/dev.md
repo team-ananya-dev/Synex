@@ -26,3 +26,16 @@ Contracts touched: all four files in `contracts/`, additive, see commits.
 
 Libraries and tools to credit in the README (rule 7): FastAPI, Uvicorn, httpx, pydantic, pytest, the Anthropic Python SDK (all pip), uv (Astral), Mailpit v1.34.0 (axllent, MIT, from its GitHub release, checksum checked).
 Commands run (rule 10): `uv venv .venv`; `uv pip install -r requirements.txt --python .venv/bin/python`; Mailpit downloaded from `github.com/axllent/mailpit/releases` and copied to `~/.local/bin`.
+
+## 2026-11-22 15:25 Dev results session (worktree dev/results)
+Done:
+- Contract `contracts/2026-11-22-dev-results.md`: result route, summary step, independence rule. Dev takes the s8 result (OWNERS listed s8 under Ananya).
+- Stage 8 result `server/app/stages/s8_result.py`, routes `server/app/routes/result.py` (`GET /customer/cases/{id}/result`, `POST .../result/summary`), tests `server/tests/test_result.py`. Two lines in `server/app/main.py`.
+In progress: nothing half done.
+Next: web Result tab (Ananya) on the contract; s7 idempotency request in `docs/inbox/ananya/`.
+Decisions:
+- Stage 7 was already built by Ananya; not duplicated. Answers by sub-question use her `/customer/cases/{id}/responses`.
+- Independence uses the profile's current city (Crustdata has no per-role city). Missing fields count as a separate source and are listed in `independence_unchecked`.
+- consensus or split needs the model's judgement; before the summary is written, 2+ sources show "multiple sources, agreement not assessed". The summary uses the small model.
+Blocked on: nothing.
+Contracts touched: `contracts/2026-11-22-dev-results.md` (new).

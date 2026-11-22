@@ -77,9 +77,14 @@ def expert_base_url() -> str:
     return os.environ.get("SYNEX_EXPERT_BASE_URL", "http://localhost:3000").rstrip("/")
 
 
-def price_per_subquestion() -> float:
-    """Simulated price per answered sub-question. A placeholder: the real rate is undecided."""
-    return float(os.environ.get("SYNEX_PRICE_PER_SUBQUESTION", "100"))
+def price_per_subquestion_inr() -> float:
+    """Quoted price per answered sub-question, in rupees. A display figure only: no payment is taken."""
+    return float(os.environ.get("SYNEX_PRICE_PER_SUBQUESTION_INR", "8000"))
+
+
+def case_credit_cap() -> float:
+    """Crustdata credits one case may spend. 25 while developing (small limits), 250 in demo mode."""
+    return float(os.environ.get("SYNEX_CASE_CREDIT_CAP", "250" if demo_mode() else "25"))
 
 
 def web_origins() -> list[str]:

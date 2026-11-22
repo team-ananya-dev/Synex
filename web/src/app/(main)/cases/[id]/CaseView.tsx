@@ -9,7 +9,7 @@ import {
   type SynexEvent,
 } from "@/lib/api";
 import { useCaseEvents } from "@/lib/useCaseEvents";
-import { Pill, SimulatedTag, StateBadge, TONE } from "@/components/StateBadge";
+import { Pill, StateBadge, TONE } from "@/components/StateBadge";
 import { CostTable } from "@/components/CostTable";
 
 const STAGES: [string, string][] = [
@@ -26,16 +26,16 @@ const STAGES: [string, string][] = [
 const REFRESH_ON = new Set([
   "case.state", "plan.approved", "stage.done", "stage.failed", "llm.call", "crustdata.call", "job.paused",
   "approval.approved", "approval.rejected", "mail.sent", "mail.blocked", "mail.failed",
-  "ledger.hold", "ledger.capture", "ledger.release", "response.received",
+  "outreach.batch_approved", "response.received",
 ]);
 
-type Tab = "plan" | "live" | "ledger";
+type Tab = "plan" | "live" | "costs";
 type SourcingSummary = Record<string, {
   companies: { asked: string; resolved: boolean; name: string | null; total_matches: number | null }[];
   found: number;
 }>;
 
-const money = (n: number) => `$${n.toFixed(2)}`;
+const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const stageResult = <T,>(events: SynexEvent[], stage: string) =>
   events.findLast((e) => e.type === "stage.done" && e.stage === stage)?.result as T | undefined;
 
@@ -83,8 +83,7 @@ export function CaseView() {
       <section className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
         <Counter label="Crustdata credits" value={`${data.cost.crustdata_credits.toFixed(1)} / ${data.cost.credit_cap}`} />
         <Counter label="Model spend" value={`$${data.cost.model_usd.toFixed(4)}`} />
-        <Counter label="Held · simulated" value={money(data.ledger.balance.remaining)} amber />
-        <Counter label="Charged · simulated" value={money(data.ledger.balance.captured)} amber />
+        {data.quote && <Counter label="Quoted price · no payment taken" value={inr(data.quote.quoted_price_inr)} />}
       </section>
 
       <section className="flex flex-wrap gap-1.5 text-xs">
@@ -95,7 +94,7 @@ export function CaseView() {
       </section>
 
       <div className="flex gap-1 border-b border-zinc-800">
-        {(["plan", "live", "ledger"] as Tab[]).map((t) => (
+        {(["plan", "live", "costs"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -108,7 +107,7 @@ export function CaseView() {
 
       {current === "plan" && <PlanTab data={data} events={events} onChanged={load} />}
       {current === "live" && <LiveTab data={data} events={events} />}
-      {current === "ledger" && <LedgerTab data={data} />}
+      {current === "costs" && <CostsTab data={data} />}
     </div>
   );
 }
@@ -164,6 +163,7 @@ function PlanTab({ data, events, onChanged }: { data: CustomerCase; events: Syne
   const waiting = !Object.keys(data.panel).length;
   return (
     <div className="flex flex-col gap-3.5">
+      {data.invites.length > 0 && <ReviewInvitations data={data} onApproved={onChanged} />}
       {waiting && data.state === "SOURCING" && (
         <p className="text-sm text-zinc-500">Finding, screening and ranking former employees…</p>
       )}
@@ -178,7 +178,6 @@ const planMeta = (sq: SubQuestion) =>
 function ApproveCard({ data, onApproved }: { data: CustomerCase; onApproved: () => void }) {
   const quote = data.quote!;
   const [panelSize, setPanelSize] = useState(3);
-  const [budget, setBudget] = useState(String(quote.hold_amount));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -186,7 +185,7 @@ function ApproveCard({ data, onApproved }: { data: CustomerCase; onApproved: () 
     setBusy(true);
     setError(null);
     try {
-      await api.approvePlan(data.id, panelSize, Number(budget));
+      await api.approvePlan(data.id, panelSize);
       onApproved();
     } catch (e) {
       setError((e as Error).message);
@@ -196,17 +195,14 @@ function ApproveCard({ data, onApproved }: { data: CustomerCase; onApproved: () 
 
   return (
     <div className="flex flex-col gap-3.5 rounded-[10px] border border-zinc-800 bg-panel p-[18px]">
-      <div className="flex items-center gap-2">
-        <span className="text-[15px] font-semibold">Approve and hold</span>
-        <span className="ml-auto"><SimulatedTag /></span>
-      </div>
+      <span className="text-[15px] font-semibold">Approve the plan</span>
       <div className="flex flex-col gap-2 text-[13px]">
         <Row label="Sub-questions" value={String(quote.subquestions)} />
-        <Row label="Per answered sub-question" value={money(quote.price_per_subquestion)} />
+        <Row label="Per answered sub-question" value={inr(quote.price_per_subquestion_inr)} />
         <div className="h-px bg-zinc-800" />
         <div className="flex justify-between text-[15px]">
-          <span>Maximum hold</span>
-          <span className="font-mono font-medium">{money(quote.hold_amount)}</span>
+          <span>Quoted price</span>
+          <span className="font-mono font-medium">{inr(quote.quoted_price_inr)}</span>
         </div>
       </div>
       <div className="flex flex-col gap-1.5 text-[13px]">
@@ -223,29 +219,93 @@ function ApproveCard({ data, onApproved }: { data: CustomerCase; onApproved: () 
           ))}
         </div>
       </div>
-      <label className="flex flex-col gap-1.5 text-[13px]">
-        <span className="text-zinc-400">Budget cap (USD, simulated)</span>
-        <input
-          type="number"
-          min={quote.hold_amount}
-          step="any"
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          className="rounded-md border border-zinc-700 bg-background px-2.5 py-2 font-mono text-sm outline-none focus:border-zinc-500"
-        />
-      </label>
       <p className="text-xs leading-relaxed text-zinc-400">
-        You are charged only for sub-questions that get answered; the rest of the hold is released when the case closes.
-        No money moves: this is a simulated ledger.
+        {quote.label[0].toUpperCase() + quote.label.slice(1)}. This build makes no payments; the price is shown for information.
       </p>
       {error && <span className="text-[13px] text-red-300">{error}</span>}
       <button
         onClick={approve}
-        disabled={busy || !(Number(budget) > 0)}
+        disabled={busy}
         className="rounded-md bg-foreground px-3.5 py-2.5 text-sm font-medium text-background disabled:opacity-40"
       >
-        {busy ? "Approving…" : `Approve plan · hold ${money(quote.hold_amount)}`}
+        {busy ? "Approving…" : "Approve plan and start sourcing"}
       </button>
+    </div>
+  );
+}
+
+// The customer's approval of the anonymised invitations. Nothing is emailed before this click; each invitation is
+// its own logged approval. The preview has no name, address or link.
+function ReviewInvitations({ data, onApproved }: { data: CustomerCase; onApproved: () => void }) {
+  const waiting = data.invites.filter((i) => i.status === "DRAFTED");
+  const [chosen, setChosen] = useState<Set<string>>(() => new Set(waiting.filter((i) => i.selected_by_default).map((i) => i.ref)));
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = (ref: string) =>
+    setChosen((prev) => {
+      const next = new Set(prev);
+      if (next.has(ref)) next.delete(ref);
+      else next.add(ref);
+      return next;
+    });
+
+  async function send() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.approveOutreach(data.id, [...chosen]);
+      setResult(`${r.sent} sent · ${r.dropped} dropped${r.blocked ? ` · ${r.blocked} blocked` : ""}${r.failed ? ` · ${r.failed} failed` : ""}`);
+      onApproved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[10px] border border-zinc-800 bg-panel p-[18px]">
+      <div className="flex items-baseline gap-2">
+        <span className="text-[15px] font-semibold">{waiting.length ? "Review invitations" : "Invitations"}</span>
+        <span className="text-xs text-zinc-500">
+          {waiting.length
+            ? "Tick the experts to invite. Nothing is sent before you approve. Flagged experts start unticked: read why."
+            : "Approved. In this build every invitation goes to a teammate's inbox, never to a real person."}
+        </span>
+      </div>
+      {data.invites.map((i) => (
+        <div key={i.ref} className={`flex flex-col gap-2 rounded-lg border px-3.5 py-3 text-[13px] ${i.flagged ? "border-[#4a3510]" : "border-zinc-800"}`}>
+          <label className="flex cursor-pointer flex-wrap items-center gap-2">
+            {i.status === "DRAFTED" ? (
+              <input type="checkbox" checked={chosen.has(i.ref)} onChange={() => toggle(i.ref)} />
+            ) : (
+              <Pill tone={i.status === "SENT" ? "emerald" : i.status === "REJECTED" ? "zinc" : "red"}>{i.status.toLowerCase()}</Pill>
+            )}
+            <span className="font-mono text-xs">{i.ref}</span>
+            <span className="font-medium">{[i.role, i.company].filter(Boolean).join(" · ")}</span>
+            {i.tenure_months != null && <span className="text-zinc-500">{i.tenure_months} months</span>}
+            <span className="ml-auto text-xs text-zinc-500">sub-questions {i.subquestion_indices.join(", ")}</span>
+          </label>
+          {i.flagged && i.flag_reasons.map((r, k) => <span key={k} className="text-xs text-amber-300">⚑ {r}</span>)}
+          <details>
+            <summary className="cursor-pointer text-xs text-zinc-400">Preview: {i.subject}</summary>
+            <pre className="mt-2 whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-zinc-300">{i.preview}</pre>
+          </details>
+        </div>
+      ))}
+      {error && <span className="text-[13px] text-red-300">{error}</span>}
+      {result && <span className="text-[13px] text-emerald-300">{result}</span>}
+      {waiting.length > 0 && (
+        <button
+          onClick={send}
+          disabled={busy || chosen.size === 0}
+          className="self-start rounded-md bg-foreground px-3.5 py-2.5 text-sm font-medium text-background disabled:opacity-40"
+        >
+          {busy ? "Sending…" : `Approve and send ${chosen.size} invitation${chosen.size === 1 ? "" : "s"}`}
+        </button>
+      )}
     </div>
   );
 }
@@ -445,7 +505,6 @@ const EVENT_COLOR: [RegExp, string][] = [
   [/^case\.|^plan\./, "text-emerald-300"],
   [/^approval\.|^mail\./, "text-amber-300"],
   [/^response\./, "text-violet-300"],
-  [/^ledger\./, "text-amber-300"],
 ];
 
 function eventDetail(e: SynexEvent): string {
@@ -456,7 +515,8 @@ function eventDetail(e: SynexEvent): string {
     case "stage.failed": return `${e.stage} · ${e.error}`;
     case "crustdata.call": return `${e.endpoint} · ${e.credits} credits${e.cache_hit ? " · cache" : ""}`;
     case "llm.call": return `${e.purpose} · ${e.model} · $${Number(e.cost_usd).toFixed(4)}${e.valid ? "" : " · invalid, retried"}`;
-    case "plan.approved": return `panel ${e.panel_size} · hold $${e.hold} (simulated)`;
+    case "plan.approved": return `panel ${e.panel_size} · quoted ₹${Number(e.quoted_price_inr).toLocaleString("en-IN")} · no payment taken`;
+    case "outreach.batch_approved": return `${e.sent} sent · ${e.dropped} dropped · by ${e.by}`;
     case "approval.requested": return `${e.ref ?? ""} · sub-questions ${(e.subquestion_indices as number[] | undefined)?.join(", ") ?? ""}`;
     case "approval.approved": case "approval.rejected": return `draft ${e.outreach_id} · by ${e.by}`;
     case "mail.sent": return `draft ${e.outreach_id}`;
@@ -465,7 +525,6 @@ function eventDetail(e: SynexEvent): string {
     case "response.screened": return `${e.response_id} · ${e.verdict}${e.by && e.by !== "screen" ? ` · by ${e.by}` : ""}`;
     case "job.paused": return String(e.reason ?? "");
     default:
-      if (e.type.startsWith("ledger.")) return `$${e.amount} ${e.currency ?? ""}`;
       return "";
   }
 }
@@ -490,51 +549,19 @@ function EventStream({ events }: { events: SynexEvent[] }) {
   );
 }
 
-// ---- Ledger tab -------------------------------------------------------------------------------
+// ---- Costs tab --------------------------------------------------------------------------------
 
-const LEDGER_COLOR: Record<string, string> = { HOLD: "text-amber-300", CAPTURE: "text-emerald-300", RELEASE: "text-zinc-400" };
-
-function LedgerTab({ data }: { data: CustomerCase }) {
+function CostsTab({ data }: { data: CustomerCase }) {
   const [costs, setCosts] = useState<CaseCosts | null>(null);
   useEffect(() => {
     api.caseCosts(data.id).then(setCosts).catch(() => setCosts(null));
   }, [data.id, data.cost.model_usd, data.cost.crustdata_credits]);
-  const b = data.ledger.balance;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-        {([["Held", b.held], ["Captured", b.captured], ["Released", b.released], ["Remaining", b.remaining]] as const).map(([l, v]) => (
-          <Counter key={l} label={l} value={money(v)} />
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[17px] font-semibold">Ledger</span>
-          <SimulatedTag>{b.currency}</SimulatedTag>
-        </div>
-        {data.ledger.entries.length === 0 ? (
-          <span className="text-sm text-zinc-500">Nothing held yet.</span>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-zinc-800">
-            {data.ledger.entries.map((l, i) => (
-              <div key={i} className={`grid grid-cols-[90px_90px_minmax(0,1fr)_90px_120px] items-center gap-3 px-3.5 py-[9px] text-[13px] ${i ? "border-t border-zinc-800" : ""}`}>
-                <span className={`font-mono ${LEDGER_COLOR[l.kind]}`}>{l.kind}</span>
-                <span className="font-mono">{money(l.amount)}</span>
-                <span className="text-zinc-400">{l.note}</span>
-                <span className="text-zinc-500">{l.created_by}</span>
-                <span className="text-right text-zinc-500">{new Date(l.created_at).toLocaleTimeString()}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2.5">
-        <span className="text-[17px] font-semibold">Cost log</span>
-        <CostTable costs={costs} />
-      </div>
+    <div className="flex flex-col gap-2.5">
+      <span className="text-[17px] font-semibold">Cost log</span>
+      <p className="text-xs text-zinc-500">Every Crustdata and model call of this case with what it cost. No payment is taken.</p>
+      <CostTable costs={costs} />
     </div>
   );
 }

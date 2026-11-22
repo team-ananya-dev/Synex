@@ -58,6 +58,13 @@ def write_drafts(conn, case_id: str, subs: list[dict], panels: dict[str, list[di
     out = []
     for n, (person_id, entry) in enumerate(chosen.items()):
         p, sqs = entry["person"], entry["subs"]
+        existing = conn.execute("SELECT id, to_address, flags FROM outreach WHERE case_id=? AND person_id=?",
+                                (case_id, person_id)).fetchone()
+        if existing:  # drafted before a crash or a retry
+            out.append({"outreach_id": existing["id"], "person_id": person_id, "persona": p["title"],
+                        "subquestion_indices": [s["index"] for s in sqs], "to_address": existing["to_address"],
+                        "flagged": existing["flags"] != "[]"})
+            continue
         flags = []
         for idx in {str(s["index"]) for s in sqs}:
             for s in screens.get(idx, []):

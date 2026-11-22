@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from ..actions import ledger, queue
+from ..actions import pricing, queue
 from ..core import config, db
 from ..core.events import append_event
 from . import runner, views
@@ -22,7 +22,6 @@ class NewCase(BaseModel):
 
 class PlanApproval(BaseModel):
     panel_size: int = Field(ge=1, le=5)   # experts to contact per sub-question
-    budget: float = Field(gt=0)           # the most the customer will spend (simulated)
 
 
 def _read(fn, *args):
@@ -53,6 +52,23 @@ def get_case(case_id: str):
     return _read(views.operator_view, case_id)
 
 
+@router.post("/cases/{case_id}/retry")
+def retry_case(case_id: str, tasks: BackgroundTasks):
+    """Operator: continue a FAILED case from its last finished stage. Finished stages are reused, not re-run."""
+    conn = db.connect()
+    try:
+        case = conn.execute("SELECT state FROM cases WHERE id=?", (case_id,)).fetchone()
+        if not case:
+            raise HTTPException(404, "no such case")
+        if case["state"] != "FAILED":
+            raise HTTPException(409, f"only a FAILED case can be retried; this one is {case['state']}")
+        append_event(conn, case_id, "case.retried", {"from_state": "FAILED"})
+    finally:
+        conn.close()
+    tasks.add_task(runner.retry_case, case_id)
+    return {"id": case_id, "retrying": True}
+
+
 @router.get("/customer/cases")
 def list_customer_cases():
     return list_cases()
@@ -65,8 +81,8 @@ def get_customer_case(case_id: str):
 
 @router.post("/customer/cases/{case_id}/approve-plan")
 def approve_plan(case_id: str, body: PlanApproval, tasks: BackgroundTasks):
-    """The customer's click: approves the plan, sets the panel size and budget, and places the (simulated) hold.
-    Sourcing starts only after this, so no Crustdata credit is spent before the customer agrees."""
+    """The customer's click: approves the plan and the panel size. Sourcing starts only after this, so no Crustdata
+    credit is spent before the customer agrees. The quoted price is shown for information; no payment is taken."""
     conn = db.connect()
     try:
         case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
@@ -77,17 +93,14 @@ def approve_plan(case_id: str, body: PlanApproval, tasks: BackgroundTasks):
         plan = json.loads(conn.execute("SELECT result FROM stage_results WHERE case_id=? AND stage='s2_decomposer'"
                                        " ORDER BY id DESC LIMIT 1", (case_id,)).fetchone()["result"])
         limit = config.dev_max_subquestions()
-        quote = ledger.quote(len(plan if limit is None else plan[:limit]))
-        if body.budget < quote["hold_amount"]:
-            raise HTTPException(422, f"the budget is below the hold needed: {quote['hold_amount']} {quote['currency']}")
-        params = {**json.loads(case["params"]), "panel_size": body.panel_size, "budget": body.budget, "hold": quote["hold_amount"]}
+        quote = pricing.quote(len(plan if limit is None else plan[:limit]))
+        params = {**json.loads(case["params"]), "panel_size": body.panel_size}
         conn.execute("UPDATE cases SET params=?, updated_at=datetime('now') WHERE id=?", (json.dumps(params), case_id))
         conn.commit()
-        ledger.place_hold(conn, case_id, quote["hold_amount"], "customer")
-        append_event(conn, case_id, "plan.approved", {"panel_size": body.panel_size, "budget": body.budget,
-                                                      "hold": quote["hold_amount"], "currency": quote["currency"]})
+        append_event(conn, case_id, "plan.approved", {"panel_size": body.panel_size, "quoted_price_inr": quote["quoted_price_inr"],
+                                                      "label": quote["label"]})
         tasks.add_task(runner.continue_case, case_id)
-        return {"id": case_id, "state": "PLANNED", "hold": quote}
+        return {"id": case_id, "state": "PLANNED", "quote": quote}
     finally:
         conn.close()
 

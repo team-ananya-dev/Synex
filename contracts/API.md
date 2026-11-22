@@ -154,3 +154,13 @@ Every response with its latest screen: `{"response_id", "case_id", "ref", "perso
 
 ### `POST /operator/responses/{response_id}/decide`
 Body `{"approver": "dev" | "ananya", "decision": "accept" | "reject"}`. Only for a response whose latest verdict is `held`; adds a new screen row (`accepted` or `rejected`, `decided_by` the team member). The text is never changed. `403` not a team member (the customer cannot review), `404` unknown response, `409` not held, `422` bad decision.
+
+## Changes 2026-11-22 (Dev): payments removed from scope
+Decided by the team at about 14:45: no payment provider, no simulated ledger, no payment-like action anywhere.
+
+- `POST /customer/cases/{id}/approve-plan` body is now `{"panel_size": 1 to 5}`. No budget, no hold. Returns `{"id", "state", "quote"}`.
+- `quote` (in `GET /customer/cases/{id}`, shown at every state once a plan exists) is `{"subquestions", "price_per_subquestion_inr", "quoted_price_inr", "label": "quoted price, no payment taken"}`. A display figure only. `SYNEX_PRICE_PER_SUBQUESTION_INR` sets the rate (default 8000).
+- Removed from the customer view: `ledger`. `approval` is now `{"panel_size"}`.
+- `plan.approved` event carries `panel_size`, `quoted_price_inr`, `label`. No `ledger.*` events are emitted any more.
+- Expert page payout (Ananya's route) carries `terms: "payout terms shown for illustration; no payment is made in this build"`.
+- `cost.credit_cap` comes from `SYNEX_CASE_CREDIT_CAP` (default 25 while developing, 250 in demo mode).

@@ -55,6 +55,6 @@ const KNOWN_TYPES = [
   "crustdata.call", "llm.call", "job.paused", "competitor.lookup_failed",
   "approval.requested", "approval.approved", "approval.rejected",
   "mail.sent", "mail.blocked", "mail.failed",
-  "ledger.hold", "ledger.capture", "ledger.release",
+  "outreach.batch_approved",
   "response.received", "response.screened",
 ];

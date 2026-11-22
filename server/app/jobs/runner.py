@@ -18,7 +18,6 @@ from ..crustdata.client import CrustdataClient
 from ..stages import s1_question_screen, s2_decomposer, s3_sourcer, s4_people_screen, s5_ranker, s6_outreach_writer
 
 DEFAULT_PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1}
-CREDIT_CAP = 25.0
 crustdata_transport = None  # tests only: an httpx transport that replaces the network
 
 
@@ -49,6 +48,13 @@ class StageFailed(RuntimeError):
 
 
 def run_stage(conn, case_id: str, stage: str, fn):
+    """Run one stage, or reuse its stored result if it already finished (after a crash or a retry), so no
+    finished stage spends credits or sends anything twice."""
+    done = conn.execute("SELECT result FROM stage_results WHERE case_id=? AND stage=? ORDER BY id DESC LIMIT 1",
+                        (case_id, stage)).fetchone()
+    if done:
+        append_event(conn, case_id, "stage.reused", {"stage": stage})
+        return json.loads(done["result"])
     append_event(conn, case_id, "stage.started", {"stage": stage})
     try:
         result = fn()
@@ -73,6 +79,16 @@ def _guarded(case_id: str, phase) -> None:
         set_state(conn, case_id, "FAILED")
     finally:
         conn.close()
+
+
+def retry_case(case_id: str) -> None:
+    """Continue a stopped case from its last finished stage: phase 2 if the plan was approved, else phase 1."""
+    conn = db.connect()
+    try:
+        params = json.loads(conn.execute("SELECT params FROM cases WHERE id=?", (case_id,)).fetchone()["params"])
+    finally:
+        conn.close()
+    _guarded(case_id, _source_and_draft if "panel_size" in params else _plan)
 
 
 def run_case(case_id: str) -> None:
@@ -108,7 +124,7 @@ def _source_and_draft(conn, case_id: str) -> None:
     subs = stage_rows["s2_decomposer"]
     set_state(conn, case_id, "SOURCING")
 
-    client = CrustdataClient(conn, case_id=case_id, credit_cap=CREDIT_CAP, transport=crustdata_transport)
+    client = CrustdataClient(conn, case_id=case_id, credit_cap=config.case_credit_cap(), transport=crustdata_transport)
     limit = config.dev_max_subquestions()
     work = subs if limit is None else subs[:limit]
 
@@ -186,7 +202,12 @@ def _source_and_draft(conn, case_id: str) -> None:
             idx = str(sq["index"])
             first = ranked[idx]["ranked"]
             top, rest = first[:enrich_n], first[enrich_n:]
-            people, enrich_call = people_api.enrich_people(client, [p["profile_url"] for p in top if p["profile_url"]])
+            try:
+                people, enrich_call = people_api.enrich_people(client, [p["profile_url"] for p in top if p["profile_url"]])
+            except Exception as e:  # enrichment improves the ranking; without it the first-pass ranking stands
+                append_event(conn, case_id, "enrich.skipped", {"subquestion_index": sq["index"], "error": f"{type(e).__name__}: {e}"})
+                out[idx] = {**ranked[idx], "enriched_person_ids": [], "enrich_call_id": None, "enrich_skipped": True}
+                continue
             enriched = [s5_ranker.with_profile(p, people[p["profile_url"]], p["company_id"])
                         if p["profile_url"] in people else p for p in top]
             result, llm_call = s5_ranker.rank(conn, enriched, sq["text"], sq["expertise"], case_id)

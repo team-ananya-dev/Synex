@@ -160,3 +160,16 @@ def test_budget_blocks_calls(monkeypatch):
     monkeypatch.setattr(llm, "BUDGET_USD", 0.0)
     with pytest.raises(llm.BudgetExceeded):
         llm.call_json(conn, purpose="t", system="s", user="u", schema={"type": "object"}, client=FakeAnthropic([{}]))
+
+
+def test_ranker_scores_in_batches_and_caps_how_many_it_scores(monkeypatch):
+    conn = db.connect(":memory:")
+    monkeypatch.setattr(s5_ranker, "BATCH", 2)
+    monkeypatch.setattr(s5_ranker, "RANK_MAX", 4)
+    cands = [cand(person_id=i) for i in range(1, 6)]
+    replies = [{"ranked": [entry(1, 70, ["Operations Manager"]), entry(2, 60, ["Operations Manager"])]},
+               {"ranked": [entry(3, 50, ["Operations Manager"]), entry(4, 45, ["Operations Manager"])]}]
+    result, call_id = _rank_with(conn, replies, cands)
+    assert [r["person_id"] for r in result["ranked"]] == [1, 2, 3, 4] and call_id.count(",") == 1
+    assert result["excluded"] == [{"person_id": 5, "name": "A B", "score": None, "title": "Operations Manager",
+                                   "why": "not scored: beyond the top 4 by search relevance"}]

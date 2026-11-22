@@ -12,7 +12,6 @@ const FILTERS: [string, string, (t: string) => boolean][] = [
   ["calls", "Model and Crustdata calls", (t) => /^(llm|crustdata)\./.test(t)],
   ["actions", "Approvals and mail", (t) => /^(approval|mail)\./.test(t)],
   ["responses", "Responses", (t) => t.startsWith("response.")],
-  ["ledger", "Ledger", (t) => t.startsWith("ledger.")],
 ];
 
 const COLOR: [RegExp, string][] = [
