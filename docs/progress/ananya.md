@@ -110,3 +110,13 @@ Blocked on: nothing.
 Contracts touched: none.
 
 Libraries and tools to credit in the README (rule 7), changed: Pixelify Sans font (Google Fonts, SIL Open Font License) replaces VT323.
+
+## 2026-11-22 15:04 IST ananya landing-calmer
+Done: calmer pond after Ananya's review (too fast, too smooth, too hectic). `web/src/components/landing/Pond.tsx`: darker water and pads; fewer koi (about 3 big plus 4 small) swimming at about a third of the speed with lazier turns and a gentle flee; ripples travel at half speed and render as flat pixel rings (crest, trough, base) instead of a smooth gradient; softer pointer wake and smaller click splash; pads, duckweed and reeds respond less; two slower dragonflies; slower sway. `Landing.tsx`: no ripples on hover (only clicks and the Drop it button), no card lift. Headlines now Silkscreen Bold with a stepped pixel extrusion (`.pop-title` in `globals.css`).
+In progress: nothing.
+Next: customer "Review invitations" step; stage 8 memo.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
+
+Libraries and tools to credit in the README (rule 7), added: Silkscreen font (Google Fonts, SIL Open Font License).

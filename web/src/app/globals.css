@@ -44,10 +44,23 @@ button:not(:disabled) {
   --color-petal: #bfe6ff;    /* pale blue accent */
   --color-mist: #8fa3bf;     /* muted text */
   --font-pixel: var(--font-pixelify);
+  --font-display: var(--font-silkscreen);
+}
+
+/* big display type: a stepped pixel extrusion so it lifts off the water */
+.pop-title {
+  letter-spacing: .02em;
+  text-shadow: 2px 2px 0 #1d3150, 4px 4px 0 #1d3150, 6px 6px 0 #070d19, 8px 8px 0 rgba(0, 0, 0, .55), 0 0 40px rgba(5, 9, 17, .95);
+}
+.pop-title-koi {
+  text-shadow: 2px 2px 0 #8a3a12, 4px 4px 0 #8a3a12, 6px 6px 0 #070d19, 8px 8px 0 rgba(0, 0, 0, .55), 0 0 40px rgba(5, 9, 17, .95);
+}
+.text-koi.pop-title-koi {
+  text-shadow: 2px 2px 0 #7a2414, 4px 4px 0 #7a2414, 6px 6px 0 #070d19, 8px 8px 0 rgba(0, 0, 0, .55), 0 0 40px rgba(5, 9, 17, .95);
 }
 
 .pixel-panel {
-  background: rgba(7, 13, 25, .82);
+  background: rgba(5, 9, 17, .86);
   border: 2px solid #1d3150;
   box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);
   backdrop-filter: blur(2px);

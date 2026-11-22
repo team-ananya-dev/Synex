@@ -50,8 +50,6 @@ export function Landing() {
     setTimeout(() => router.push(q ? `/ask?q=${encodeURIComponent(q)}` : "/ask"), 500);
   }
 
-  const ripple = (e: React.MouseEvent<HTMLElement>) => pondDrop(...centre(e.currentTarget), 0.5);
-
   return (
     <div className="relative min-h-screen text-cream">
       <Pond />
@@ -59,14 +57,14 @@ export function Landing() {
       <header className="relative z-10">
         <nav className="mx-auto flex max-w-6xl items-center gap-8 px-6 py-5">
           <Link href="/" className="flex items-center gap-2 font-pixel text-2xl text-cream text-pond-shadow">
-            <span className="inline-block h-3 w-3 bg-koi shadow-[2px_2px_0_#070d19]" />synex
+            <span className="inline-block h-3 w-3 bg-koi shadow-[2px_2px_0_#070d19]" /><span className="font-display font-bold uppercase">synex</span>
           </Link>
           <div className="hidden items-center gap-6 text-sm text-mist md:flex">
             <a href="#how" className="hover:text-cream">How it works</a>
             <a href="#try" className="hover:text-cream">Try the rules</a>
             <a href="#real" className="hover:text-cream">What&apos;s real</a>
           </div>
-          <Link href="/ask" onMouseEnter={ripple} className="pixel-btn ml-auto bg-deep px-4 py-1.5 font-pixel text-sm text-amber">
+          <Link href="/ask" className="pixel-btn ml-auto bg-deep px-4 py-1.5 font-pixel text-sm text-amber">
             Ask a question
           </Link>
         </nav>
@@ -77,9 +75,10 @@ export function Landing() {
         <span className="pixel-panel mb-8 px-3 py-1 font-pixel text-xs tracking-widest text-mist">
           SERVICES, REPLACED · <span className="text-amber">AN EXPERT NETWORK AS SOFTWARE</span>
         </span>
-        <h1 className="max-w-4xl font-pixel text-5xl leading-[1.05] text-cream text-pond-shadow sm:text-7xl">
+        <h1 className="max-w-5xl font-display text-4xl leading-[1.15] font-bold text-cream uppercase pop-title sm:text-6xl">
           Drop one question.<br />
-          <span className="text-amber">Watch it ripple out</span> to a whole panel.
+          <span className="pop-title-koi text-amber">Watch it ripple out</span><br />
+          to a whole panel.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-cream/85 text-pond-shadow">
           Synex finds former employees in live people data, screens every person and every answer with fixed
@@ -110,7 +109,7 @@ export function Landing() {
         <Heading kicker="How it works" title="Eight stages, from question to answers" />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STAGES.map((s, i) => (
-            <div key={s.name} onMouseEnter={ripple} className="pixel-panel group flex flex-col gap-2 p-5 transition hover:-translate-y-1 hover:border-amber/60">
+            <div key={s.name} className="pixel-panel group flex flex-col gap-2 p-5 transition-colors hover:border-amber/40">
               <div className="flex items-baseline justify-between">
                 <span className={`font-pixel text-3xl ${s.tone}`}>{String(i + 1).padStart(2, "0")}</span>
                 <span className="border border-rim px-1.5 py-0.5 font-pixel text-[10px] tracking-wider text-mist">{s.how}</span>
@@ -152,7 +151,7 @@ export function Landing() {
             ["Answers are screened", "The model must quote what it flags and code checks the quote. Leak phrases are held for a person."],
             ["An audit trail you can verify", "Each event stores the previous event's hash. One button recomputes the chain."],
           ].map(([title, text]) => (
-            <div key={title} onMouseEnter={ripple} className="pixel-panel p-5">
+            <div key={title} className="pixel-panel p-5">
               <h3 className="font-pixel text-base text-amber">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-mist">{text}</p>
             </div>
@@ -181,7 +180,7 @@ export function Landing() {
         <Heading kicker="Honesty" title="What's real, what's simulated" />
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {REAL.map(([label, tone, text]) => (
-            <div key={label} onMouseEnter={ripple} className="pixel-panel p-6">
+            <div key={label} className="pixel-panel p-6">
               <span className={`font-pixel text-2xl ${tone}`}>{label}</span>
               <p className="mt-3 text-sm leading-relaxed text-mist">{text}</p>
             </div>
@@ -191,10 +190,10 @@ export function Landing() {
 
       {/* closing */}
       <section className="relative flex flex-col items-center px-6 py-28 text-center">
-        <h2 className="font-pixel text-4xl text-pond-shadow sm:text-6xl">
-          One question.<br /><span className="text-koi">A whole panel.</span>
+        <h2 className="font-display text-4xl leading-[1.15] font-bold uppercase pop-title sm:text-6xl">
+          One question.<br /><span className="pop-title-koi text-koi">A whole panel.</span>
         </h2>
-        <Link href="/ask" onMouseEnter={ripple} className="pixel-btn mt-10 bg-koi px-8 py-3 font-pixel text-xl text-cream">
+        <Link href="/ask" className="pixel-btn mt-10 bg-koi px-8 py-3 font-pixel text-xl text-cream">
           Drop your question
         </Link>
       </section>
@@ -214,7 +213,7 @@ function Heading({ kicker, title }: { kicker: string; title: string }) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <span className="font-pixel text-xs tracking-[.3em] text-amber text-pond-shadow">{kicker.toUpperCase()}</span>
-      <h2 className="font-pixel text-4xl leading-tight text-pond-shadow sm:text-5xl">{title}</h2>
+      <h2 className="font-display text-3xl leading-tight font-bold uppercase pop-title sm:text-4xl">{title}</h2>
     </div>
   );
 }

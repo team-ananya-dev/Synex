@@ -18,13 +18,14 @@ export function pondDrop(x: number, y: number, power = 1) {
 type RGB = [number, number, number];
 const hex = (h: string): RGB => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
-const WATER: RGB[] = [hex("#0f1b2e"), hex("#0b1424"), hex("#080f1b")];
-const RIM = hex("#1a2a42");
-const CREST = hex("#5c7fae");
-const PAD = [hex("#1f6e3c"), hex("#2a8746"), hex("#17572f")];
-const PAD_RIM = hex("#103d22");
-const PAD_LIGHT = hex("#4fae5f");
-const PAD_VEIN = hex("#185f33");
+const WATER: RGB[] = [hex("#09111e"), hex("#070d18"), hex("#050911")];
+const RIM = hex("#111c2e");
+const TROUGH = hex("#04070d");
+const CREST = hex("#2f4a6e");
+const PAD = [hex("#1a5c33"), hex("#22703c"), hex("#144a29")];
+const PAD_RIM = hex("#0d321c");
+const PAD_LIGHT = hex("#3f8f4f");
+const PAD_VEIN = hex("#154f2c");
 const PETAL = hex("#e4f5ff");
 const PETAL_CORE = hex("#8fd0f0");
 const YELLOW = hex("#f2cf4a");
@@ -147,12 +148,12 @@ export function Pond() {
 
       // koi: a few big ones and a little school of small red fish
       koi = [];
-      const big = Math.max(4, Math.round((W * H) / 22000));
-      for (let k = 0; k < big + 7; k++) {
+      const big = Math.max(3, Math.round((W * H) / 36000));
+      for (let k = 0; k < big + 4; k++) {
         const small = k >= big;
         const x = W * (0.2 + rand() * 0.6), y = H * (0.15 + rand() * 0.7), a = rand() * Math.PI * 2;
         const size = small ? 0.55 + rand() * 0.15 : 1 + rand() * 0.45;
-        koi.push({ x, y, a, base: small ? 0.45 + rand() * 0.2 : 0.28 + rand() * 0.15, boost: 0, wander: 0, phase: rand() * 10, size,
+        koi.push({ x, y, a, base: small ? 0.16 + rand() * 0.06 : 0.1 + rand() * 0.05, boost: 0, wander: 0, phase: rand() * 10, size,
           pattern: small ? "rrrrrrcrrr" : PATTERNS[k % PATTERNS.length],
           seg: Array.from({ length: PROFILE.length }, (_, i) => ({ x: x - Math.cos(a) * i * 1.7 * size, y: y - Math.sin(a) * i * 1.7 * size })) });
       }
@@ -165,7 +166,7 @@ export function Pond() {
           blades.push({ x: cx * W + (rand() - 0.5) * 16, y: cy * H + (rand() - 0.5) * 6, len: 12 + rand() * 22,
             a: -Math.PI / 2 + (rand() - 0.5) * 0.9, bend: 0, vb: 0, flower: rand() < 0.1 });
 
-      flies = Array.from({ length: 3 }, () => {
+      flies = Array.from({ length: 2 }, () => {
         const x = rand() * W, y = rand() * H;
         return { x, y, tx: x, ty: y, a: 0, speed: 0.4, wait: 0 };
       });
@@ -181,50 +182,50 @@ export function Pond() {
       frame++;
       const t = frame;
 
-      // ---- water waves ----
-      for (let y = 1; y < H - 1; y++)
+      // ---- water waves (every other frame, so ripples travel slowly) ----
+      if (t % 2 === 0) for (let y = 1; y < H - 1; y++)
         for (let x = 1, i = y * W + 1; x < W - 1; x++, i++)
-          prev[i] = ((cur[i - 1] + cur[i + 1] + cur[i - W] + cur[i + W]) * 0.5 - prev[i]) * 0.972;
-      [cur, prev] = [prev, cur];
+          prev[i] = ((cur[i - 1] + cur[i + 1] + cur[i - W] + cur[i + W]) * 0.5 - prev[i]) * 0.968;
+      if (t % 2 === 0) [cur, prev] = [prev, cur];
 
       // pointer wake
       if (pointer.active && pointer.px > -900) {
         const sp = Math.hypot(pointer.x - pointer.px, pointer.y - pointer.py);
-        if (sp > 0.2) disturb(pointer.x, pointer.y, 1.5, Math.min(sp, 6) * 2.4);
+        if (sp > 0.6 && t % 3 === 0) disturb(pointer.x, pointer.y, 1, Math.min(sp, 4) * 1.6);
       }
       pointer.px = pointer.x;
       pointer.py = pointer.y;
-      if (!calm && t % 150 === 0) disturb(Math.random() * W, Math.random() * H, 1, 10); // a fish kissing the surface
+      if (!calm && t % 420 === 0) disturb(Math.random() * W, Math.random() * H, 1, 7); // a fish kissing the surface
 
       while (scares.length && t - scares[0].t > 90) scares.shift();
 
       // ---- koi ----
       for (const k of koi) {
-        k.wander = k.wander * 0.97 + (Math.random() - 0.5) * 0.08;
-        let turn = k.wander * 0.06;
+        k.wander = k.wander * 0.985 + (Math.random() - 0.5) * 0.04;
+        let turn = k.wander * 0.03;
         const flee = (fx: number, fy: number, radius: number, power: number) => {
           const dx = k.x - fx, dy = k.y - fy, d = Math.hypot(dx, dy);
           if (d < radius) {
             let diff = Math.atan2(dy, dx) - k.a;
             diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-            turn += diff * 0.22 * power;
-            k.boost = Math.max(k.boost, (1 - d / radius) * 2.6 * power);
+            turn += diff * 0.06 * power;
+            k.boost = Math.max(k.boost, (1 - d / radius) * 1.4 * power);
           }
         };
-        if (pointer.active) flee(pointer.x, pointer.y, 34, 1);
-        for (const s of scares) flee(s.x, s.y, 70, 1.2);
+        if (pointer.active) flee(pointer.x, pointer.y, 22, 1);
+        for (const s of scares) flee(s.x, s.y, 45, 1);
         const m = 18; // turn back from the edges
         if (k.x < m || k.x > W - m || k.y < m || k.y > H - m) {
           let diff = Math.atan2(H / 2 - k.y, W / 2 - k.x) - k.a;
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-          turn += diff * 0.08;
+          turn += diff * 0.03;
         }
-        k.a += Math.max(-0.16, Math.min(0.16, turn));
+        k.a += Math.max(-0.05, Math.min(0.05, turn));
         const speed = k.base * (1 + k.boost);
-        k.boost *= 0.95;
+        k.boost *= 0.97;
         k.x += Math.cos(k.a) * speed;
         k.y += Math.sin(k.a) * speed;
-        k.phase += 0.12 + speed * 0.35;
+        k.phase += 0.05 + speed * 0.3;
         k.seg[0].x = k.x;
         k.seg[0].y = k.y;
         const gap = 1.7 * k.size;
@@ -233,30 +234,30 @@ export function Pond() {
           const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1;
           if (d > gap) { b.x += (dx * (d - gap)) / d; b.y += (dy * (d - gap)) / d; }
         }
-        if (t % 5 === 0) { const tail = k.seg[k.seg.length - 1]; disturb(tail.x, tail.y, 0.8, -0.8 * speed * k.size); }
+        if (t % 12 === 0) { const tail = k.seg[k.seg.length - 1]; disturb(tail.x, tail.y, 0.8, -1.2 * speed * k.size); }
       }
 
       // ---- lily pads and duckweed: pointer push, ripple push, spring back ----
       for (const p of pads) {
         const cx = p.x + p.dx, cy = p.y + p.dy;
         const [gx, gy] = grad(cx, cy);
-        p.vx += -gx * 0.06 - p.dx * 0.012;
-        p.vy += -gy * 0.06 - p.dy * 0.012;
+        p.vx += -gx * 0.03 - p.dx * 0.01;
+        p.vy += -gy * 0.03 - p.dy * 0.01;
         if (pointer.active) {
-          const dx = cx - pointer.x, dy = cy - pointer.y, d = Math.hypot(dx, dy), R = p.r + 14;
-          if (d < R && d > 0.01) { p.vx += (dx / d) * (1 - d / R) * 0.5; p.vy += (dy / d) * (1 - d / R) * 0.5; }
+          const dx = cx - pointer.x, dy = cy - pointer.y, d = Math.hypot(dx, dy), R = p.r + 8;
+          if (d < R && d > 0.01) { p.vx += (dx / d) * (1 - d / R) * 0.12; p.vy += (dy / d) * (1 - d / R) * 0.12; }
         }
-        p.vx *= 0.9; p.vy *= 0.9;
+        p.vx *= 0.86; p.vy *= 0.86;
         p.dx += p.vx; p.dy += p.vy;
         p.notch += p.vx * 0.02;
       }
       for (const s of specks) {
         const [gx, gy] = grad(s.x + s.dx, s.y + s.dy);
-        s.dx += -gx * 0.12 - s.dx * 0.01;
-        s.dy += -gy * 0.12 - s.dy * 0.01;
+        s.dx += -gx * 0.05 - s.dx * 0.01;
+        s.dy += -gy * 0.05 - s.dy * 0.01;
         if (pointer.active) {
           const dx = s.x + s.dx - pointer.x, dy = s.y + s.dy - pointer.y, d = Math.hypot(dx, dy);
-          if (d < 12 && d > 0.01) { s.dx += (dx / d) * 0.4; s.dy += (dy / d) * 0.4; }
+          if (d < 8 && d > 0.01) { s.dx += (dx / d) * 0.12; s.dy += (dy / d) * 0.12; }
         }
       }
 
@@ -267,28 +268,28 @@ export function Pond() {
           const dx = tipX - pointer.x, dy = tipY - pointer.y, d = Math.hypot(dx, dy);
           if (d < 26) {
             const side = Math.sign(Math.cos(b.a) * dy - Math.sin(b.a) * dx) || 1;
-            b.vb -= side * (1 - d / 26) * 0.05;
+            b.vb -= side * (1 - d / 26) * 0.015;
           }
         }
-        b.vb += -b.bend * 0.04;
+        b.vb += -b.bend * 0.025;
         b.vb *= 0.9;
-        b.bend = Math.max(-1.2, Math.min(1.2, b.bend + b.vb));
+        b.bend = Math.max(-0.6, Math.min(0.6, b.bend + b.vb));
       }
 
       // ---- dragonflies ----
       for (const f of flies) {
-        const near = pointer.active && Math.hypot(f.x - pointer.x, f.y - pointer.y) < 30;
+        const near = pointer.active && Math.hypot(f.x - pointer.x, f.y - pointer.y) < 18;
         if (near) {
           const away = Math.atan2(f.y - pointer.y, f.x - pointer.x);
           f.tx = Math.max(5, Math.min(W - 5, f.x + Math.cos(away) * 80));
           f.ty = Math.max(5, Math.min(H - 5, f.y + Math.sin(away) * 80));
-          f.speed = 3;
+          f.speed = 1.2;
         } else if (Math.hypot(f.tx - f.x, f.ty - f.y) < 1) {
-          if (--f.wait <= 0) { f.tx = Math.random() * W; f.ty = Math.random() * H; f.speed = 0.6 + Math.random(); f.wait = 60 + Math.random() * 200; }
+          if (--f.wait <= 0) { f.tx = Math.random() * W; f.ty = Math.random() * H; f.speed = 0.25 + Math.random() * 0.3; f.wait = 200 + Math.random() * 400; }
         }
         const dx = f.tx - f.x, dy = f.ty - f.y, d = Math.hypot(dx, dy);
         if (d > 0.5) { f.a = Math.atan2(dy, dx); const s = Math.min(f.speed, d * 0.08 + 0.2); f.x += (dx / d) * s; f.y += (dy / d) * s; }
-        f.speed = Math.max(0.6, f.speed * 0.98);
+        f.speed = Math.max(0.25, f.speed * 0.98);
       }
     }
 
@@ -304,18 +305,16 @@ export function Pond() {
           const lvl = base[i];
           const c = lvl === 3 ? RIM : WATER[lvl];
           const s = (cur[i - 1] - cur[i + 1]) + (cur[i - W] - cur[i + W]);
-          const q = Math.round(s * 1.5) * 9; // stepped, so ripples stay pixel-like
-          let r = c[0] + q, g = c[1] + q, b = c[2] + q * 1.3;
-          if (s > 5) { r = CREST[0]; g = CREST[1]; b = CREST[2]; }
-          r = r < 0 ? 0 : r > 255 ? 255 : r; g = g < 0 ? 0 : g > 255 ? 255 : g; b = b < 0 ? 0 : b > 255 ? 255 : b;
-          px[i] = 0xff000000 | (b << 16) | (g << 8) | r;
+          // three flat tones only, so ripples read as pixel rings rather than a smooth gradient
+          const k = s > 2.2 ? CREST : s < -2.2 ? TROUGH : c;
+          px[i] = 0xff000000 | (k[2] << 16) | (k[1] << 8) | k[0];
         }
       }
 
       // stems under the pads
       for (const p of pads) {
         const sx = p.x + p.dx * 0.5, sy = p.y + p.dy * 0.5;
-        for (let s = 0; s < 18; s++) put(sx + Math.sin(p.stem + s * 0.35 + frame * 0.01) * 3 + s * 0.4, sy + s * 0.9, STEM);
+        for (let s = 0; s < 18; s++) put(sx + Math.sin(p.stem + s * 0.35 + frame * 0.004) * 3 + s * 0.4, sy + s * 0.9, STEM);
       }
 
       // koi: shadow pass, then bodies
@@ -382,7 +381,7 @@ export function Pond() {
       }
 
       // reeds
-      const wind = Math.sin(frame * 0.015);
+      const wind = Math.sin(frame * 0.006);
       for (const b of blades) {
         const sway = b.bend + wind * 0.06 * (b.len / 30);
         let x = b.x, y = b.y;
@@ -415,12 +414,12 @@ export function Pond() {
     const onLeave = () => { pointer.active = false; pointer.px = -999; };
     const onDown = (e: PointerEvent) => {
       const x = e.clientX / SCALE, y = e.clientY / SCALE;
-      disturb(x, y, 2.5, 28);
+      disturb(x, y, 1.5, 16);
       scares.push({ x, y, t: frame });
     };
     const onDrop = (e: Event) => {
       const { x, y, power } = (e as CustomEvent<{ x: number; y: number; power: number }>).detail;
-      disturb(x / SCALE, y / SCALE, 3 * power, 40 * power);
+      disturb(x / SCALE, y / SCALE, 2 * power, 22 * power);
       scares.push({ x: x / SCALE, y: y / SCALE, t: frame });
     };
     let resizeTimer = 0;
