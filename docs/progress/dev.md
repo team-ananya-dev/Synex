@@ -39,3 +39,19 @@ Decisions:
 - consensus or split needs the model's judgement; before the summary is written, 2+ sources show "multiple sources, agreement not assessed". The summary uses the small model.
 Blocked on: nothing.
 Contracts touched: `contracts/2026-11-22-dev-results.md` (new).
+
+## 2026-11-22 17:08 Dev lead session (final before freeze)
+Done:
+- Customer approves anonymised invitations (operator approval removed); payments and the simulated ledger removed, rupee quote "no payment taken".
+- Exactly-once sends (`actions` table, key = sha256(case|action|target) as Message-ID, mailbox check after a crash), resume on startup, `server/scripts/kill_test.sh` (passes: kill -9 after 2 of 4, one email each).
+- Limits (time, credits, model spend) stop as `LIMIT_REACHED`; cost per job in INR.
+- Every screening rule cites field_path, value, record date, call id; CANNOT_VERIFY for missing data and ambiguous companies.
+- Crustdata pacing per endpoint, one identify per company per case, 429 wait and retry; network retries; enrichment failure keeps the first-pass ranking.
+- 3 test cases in `tests/cases/` from real records, checked by `server/tests/test_cases.py`.
+- Hosting on Render free (`render.yaml`, `deploy/`), operator key on operator routes, in-site mailbox page.
+- README (job, payer, input, result, pass mark, sources, honest limits, diagrams), architecture guards, favicon, demo questions.
+In progress: nothing half done.
+Next: confirm the hosted API runs the latest commit (Render manual deploy), one hosted case to "Review invitations".
+Decisions: see `contracts/decisions/` and the API.md change sections of today.
+Blocked on: Render redeploy (team member action).
+Contracts touched: API.md, EVENTS.md, ENUMS.md, OWNERS.md (all additive sections).
