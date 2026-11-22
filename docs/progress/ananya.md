@@ -170,3 +170,11 @@ Next: run one full case by hand (ask, approve plan, approve invitations, answer 
 Decisions: the Result tab is only a view; every figure comes from Dev's route.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:33 IST ananya merge-result-tab
+Done: merged Dev's commit ead32a5, which also added a Result tab. Both of us had built one in `web/src/app/(main)/cases/[id]/CaseView.tsx` and `web/src/lib/api.ts`. Kept Dev's (already integrated with his other changes) and removed my duplicate component `web/src/components/ResultTab.tsx` and my duplicate types and calls. Carried over my friendlier messages for the summary route's 409 and 503 errors. Event names from both sides are kept in `useCaseEvents.ts` and the refresh list.
+In progress: nothing.
+Next: run one full case by hand; voice if time; README, architecture diagram, demo video.
+Decisions: one Result tab, Dev's version. To avoid duplicates: Dev, please send a request file in `docs/inbox/ananya/` before editing `web/`; the Result tab is done, do not extend it without telling me.
+Blocked on: nothing.
+Contracts touched: none.

@@ -5,13 +5,12 @@
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
-  api, type CaseCosts, type CustomerCase, type CustomerResponses, type ExpertCard, type OutreachStatus, type SubQuestion,
+  api, type CaseCosts, type CaseResult, type ResultSubQuestion, type CustomerCase, type CustomerResponses, type ExpertCard, type OutreachStatus, type SubQuestion,
   type SynexEvent,
 } from "@/lib/api";
 import { useCaseEvents } from "@/lib/useCaseEvents";
 import { Pill, StateBadge, TONE } from "@/components/StateBadge";
 import { CostTable } from "@/components/CostTable";
-import { ResultTab } from "@/components/ResultTab";
 
 const STAGES: [string, string][] = [
   ["s1_question_screen", "Question screen"],
@@ -27,7 +26,7 @@ const STAGES: [string, string][] = [
 const REFRESH_ON = new Set([
   "case.state", "plan.approved", "stage.done", "stage.failed", "llm.call", "crustdata.call", "job.paused",
   "approval.approved", "approval.rejected", "mail.sent", "mail.blocked", "mail.failed",
-  "outreach.batch_approved", "response.received", "response.screened",
+  "outreach.batch_approved", "response.received", "response.screened", "result.summary_written", "case.retried",
 ]);
 
 type Tab = "plan" | "live" | "result" | "costs";
@@ -59,9 +58,16 @@ export function CaseView() {
 
   // default tab: plan until outreach is out, then live
   const current: Tab = tab ?? (data.outreach.SENT || data.state === "COLLECTING" ? "live" : "plan");
-  const done = new Set(events.filter((e) => e.type === "stage.done").map((e) => e.stage as string));
-  const started = new Set(events.filter((e) => e.type === "stage.started").map((e) => e.stage as string));
-  const failed = events.find((e) => e.type === "stage.failed");
+  // each stage shows its latest status, so a stage that failed and then finished on a retry shows done
+  const stageStatus: Record<string, "running" | "done" | "failed"> = {};
+  for (const e of events) {
+    const st = e.stage as string | undefined;
+    if (!st) continue;
+    if (e.type === "stage.started") stageStatus[st] = "running";
+    else if (e.type === "stage.done" || e.type === "stage.reused") stageStatus[st] = "done";
+    else if (e.type === "stage.failed") stageStatus[st] = "failed";
+  }
+  const failed = data.state === "FAILED" ? events.findLast((e) => e.type === "stage.failed") : undefined;
   const screen = stageResult<{ verdict: string; reason: string; effective_question: string }>(events, "s1_question_screen");
 
   return (
@@ -89,7 +95,7 @@ export function CaseView() {
 
       <section className="flex flex-wrap gap-1.5 text-xs">
         {STAGES.map(([key, label]) => {
-          const s = failed?.stage === key ? "failed" : done.has(key) ? "done" : started.has(key) ? "running" : "waiting";
+          const s = stageStatus[key] ?? "waiting";
           return <span key={key} className={`rounded px-2 py-1 ${STAGE_STYLE[s]}`}>{label} · {s}</span>;
         })}
       </section>
@@ -547,6 +553,119 @@ function EventStream({ events }: { events: SynexEvent[] }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ---- Result tab -------------------------------------------------------------------------------
+// The finished work: per sub-question, the screened answers, how many independent sources back them, the
+// confidence computed in code, and an optional summary whose every sentence cites an answer.
+
+const CONF_TONE: Record<string, "emerald" | "amber" | "zinc"> = { High: "emerald", Medium: "amber", Low: "zinc" };
+
+function ResultTab({ caseId, events }: { caseId: string; events: SynexEvent[] }) {
+  const [result, setResult] = useState<CaseResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const screened = events.filter((e) => e.type === "response.screened" || e.type === "result.summary_written").length;
+
+  useEffect(() => {
+    api.result(caseId).then(setResult).catch((e) => setError(e.message));
+  }, [caseId, screened]);
+
+  async function summarise() {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await api.writeSummary(caseId));
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg.startsWith("503")
+        ? "The summary could not be written (model unavailable or budget reached). The structured result below is still valid."
+        : msg.startsWith("409") ? "There is no accepted answer to summarise yet." : msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!result) return <p className="text-sm text-zinc-500">{error ?? "Loading result…"}</p>;
+  const answered = result.subquestions.filter((s) => s.status === "answered").length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-zinc-800 bg-panel px-4 py-3 text-[13px]">
+        <span className="text-[15px] font-semibold">Result</span>
+        <span className="text-zinc-400">{answered} of {result.subquestions.length} sub-questions answered</span>
+        <span className="text-xs text-zinc-500">
+          Confidence and sources are computed in code from screened answers: High needs 3 independent sources, Medium 2, Low 1.
+        </span>
+        <button
+          onClick={summarise}
+          disabled={busy || answered === 0 || result.summary_status === "written"}
+          className="ml-auto rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-40"
+        >
+          {busy ? "Writing…" : result.summary_status === "written" ? "Summary written" : result.summary_status === "stale" ? "Update summary" : "Write summary"}
+        </button>
+      </div>
+      {error && <span className="text-[13px] text-red-300">{error}</span>}
+      {result.subquestions.map((sq) => <ResultCard key={sq.index} sq={sq} />)}
+    </div>
+  );
+}
+
+function ResultCard({ sq }: { sq: ResultSubQuestion }) {
+  return (
+    <div className="flex flex-col gap-2.5 rounded-lg border border-zinc-800 px-4 py-3.5 text-[13px]">
+      <div className="flex gap-2.5">
+        <span className="font-mono text-sm text-zinc-500">{sq.index}.</span>
+        <span className="flex-1 text-[15px] font-medium text-pretty">{sq.text}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {sq.status === "answered" ? (
+          <>
+            {sq.confidence && <Pill tone={CONF_TONE[sq.confidence]}>confidence {sq.confidence}</Pill>}
+            <Pill tone="zinc">{sq.independent_sources} independent source{sq.independent_sources === 1 ? "" : "s"}</Pill>
+            {sq.label && <Pill tone="zinc">{sq.label}</Pill>}
+          </>
+        ) : (
+          <Pill tone="amber">cannot verify yet: no accepted answer</Pill>
+        )}
+        <span className="text-zinc-500">
+          {sq.coverage.received} received · {sq.coverage.accepted} accepted · {sq.coverage.redacted} redacted · {sq.coverage.held} held · {sq.coverage.rejected} rejected
+        </span>
+      </div>
+      {sq.summary && (
+        <div className="flex flex-col gap-1 rounded-md bg-hover px-3 py-2.5">
+          {sq.summary.sentences.map((s, i) => (
+            <span key={i} className="leading-relaxed text-zinc-200">
+              {s.text} {s.cites.map((c) => <span key={c} className="font-mono text-xs text-sky-300">[{c}]</span>)}
+            </span>
+          ))}
+          {sq.summary.dropped_uncited > 0 && (
+            <span className="text-xs text-zinc-500">{sq.summary.dropped_uncited} uncited sentence(s) dropped by the checker</span>
+          )}
+        </div>
+      )}
+      {sq.answers.map((a) => (
+        <div key={a.response_id} className="flex flex-col gap-1 border-l-2 border-zinc-800 pl-3">
+          <span className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            <span className="font-mono text-zinc-300">{a.ref}</span>
+            {[a.role, a.company].filter(Boolean).join(" · ")}
+            <Pill tone={a.verdict === "accepted" ? "emerald" : "amber"}>{a.verdict}</Pill>
+            {a.confidence && <span>self-rated {a.confidence}</span>}
+            <span className="font-mono">{a.response_id}</span>
+          </span>
+          <span className="leading-relaxed whitespace-pre-wrap text-zinc-300">{a.text}</span>
+        </div>
+      ))}
+      {sq.groups.filter((g) => g.refs.length > 1).map((g, i) => (
+        <span key={i} className="text-xs text-zinc-500">Counted as one source: {g.refs.join(", ")} ({g.evidence})</span>
+      ))}
+      {sq.independence_unchecked.length > 0 && (
+        <span className="text-xs text-zinc-500">
+          Independence not fully checked for {sq.independence_unchecked.map((u) => `${u.ref} (missing ${u.missing.join(", ")})`).join("; ")}
+        </span>
+      )}
     </div>
   );
 }
