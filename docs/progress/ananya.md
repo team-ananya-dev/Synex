@@ -188,3 +188,11 @@ Next: Dev's findings; voice if time; README, architecture diagram, demo video.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:46 IST ananya findings-note
+Done: wrote the three findings for Dev as a request file `docs/inbox/dev/2026-11-22-ananya-full-run-findings.md` (no edit to his files).
+In progress: nothing.
+Next: push; voice if time; README, architecture diagram, demo video.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
