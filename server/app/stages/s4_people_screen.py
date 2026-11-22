@@ -22,7 +22,7 @@ def rule_not_current(c: dict, today: date, p: dict):
 
 def rule_cooling_off(c, today, p):
     if not c["end_date"]:
-        return False, "no exit date on record"
+        return None, "cannot verify: the record has no exit date for the role at the target company"
     if c["end_date"] > months_before(today, p["min_left"]).isoformat():
         return False, f"left {c['end_date']}, less than {p['min_left']} months ago"
     return True, f"left {c['end_date']}, at least {p['min_left']} months ago"
@@ -30,7 +30,7 @@ def rule_cooling_off(c, today, p):
 
 def rule_freshness(c, today, p):
     if not c["end_date"]:
-        return False, "no exit date on record"
+        return None, "cannot verify: the record has no exit date for the role at the target company"
     if c["end_date"] < months_before(today, p["max_left"]).isoformat():
         return False, f"left {c['end_date']}, more than {p['max_left']} months ago"
     return True, f"left {c['end_date']}, within {p['max_left']} months"
@@ -39,7 +39,7 @@ def rule_freshness(c, today, p):
 def rule_min_tenure(c, today, p):
     t = c["tenure_months"]
     if t is None:
-        return False, "no start date on record"
+        return None, "cannot verify: the record has no start date for the role at the target company"
     if t < p["min_years"] * 12:
         return False, f"{t} months at the company, below {p['min_years'] * 12}"
     return True, f"{t} months at the company"
@@ -100,13 +100,40 @@ def rule_restricted(c, today, p):
 FAIL_RULES = [rule_not_current, rule_cooling_off, rule_freshness, rule_min_tenure, rule_competitor, rule_restricted]
 
 
+def _evidence(rule: str, c: dict) -> tuple[str | None, object]:
+    """The Crustdata field a rule read, and its value. Every rule result carries it with the record date."""
+    role = c.get("role_path")
+    current = c.get("current_roles", [])
+    if rule == "rule_not_current":
+        return "experience.employment_details.current[*].crustdata_company_id", [r["company_id"] for r in current]
+    if rule in ("rule_cooling_off", "rule_freshness"):
+        return (f"{role}.end_date" if role else "experience.employment_details.past[*].end_date"), c.get("end_date")
+    if rule == "rule_min_tenure":
+        return (f"{role}.start_date, {role}.end_date" if role else "experience.employment_details.past[*].start_date"), \
+            {"start": c.get("start_date"), "end": c.get("end_date")}
+    if rule == "rule_competitor":
+        return "experience.employment_details.current[*].company_website", [r["website"] for r in current]
+    if rule == "rule_restricted":
+        return "basic_profile.name", None   # the name is checked but not repeated here
+    return None, None
+
+
 def screen(candidate: dict, today: date, params: dict) -> dict:
-    """verdict: pass | review (manual review flag, rule 6) | fail. Every rule's reason is kept."""
+    """verdict: pass | review (manual review flag) | fail | cannot_verify (a field the rule needs is missing).
+    Every rule's reason is kept with the field it read, the value, the record date and the source call."""
     results = []
     for rule in FAIL_RULES:
         ok, reason = rule(candidate, today, params)
-        results.append({"rule": rule.__name__, "passed": ok, "reason": reason})
-    verdict = "pass" if all(r["passed"] for r in results) else "fail"
+        path, value = _evidence(rule.__name__, candidate)
+        results.append({"rule": rule.__name__, "passed": ok, "reason": reason, "field_path": path, "value": value,
+                        "record_date": candidate.get("record_updated_at"), "source_call_id": candidate.get("source_call_id"),
+                        **({"cannot_verify": True} if ok is None else {})})
+    if any(r["passed"] is False for r in results):
+        verdict = "fail"
+    elif any(r["passed"] is None for r in results):
+        verdict = "cannot_verify"   # never guess: the person stays off the panel and the missing field is named
+    else:
+        verdict = "pass"
     if verdict == "pass":  # rule 4 flags: a lesser role at a competitor, or no competitor list to check against
         hosts = params.get("competitor_domains")
         if hosts is None:

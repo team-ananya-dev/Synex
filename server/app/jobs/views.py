@@ -73,11 +73,13 @@ def redact_stage_result(case_id: str, stage: str, result, stages: dict):
         return result
     if stage == "s3_sourcer":
         return {idx: {"companies": [{"asked": c["asked"], "basis": c["basis"], "resolved": c["resolved"],
+                                     "cannot_verify": c.get("cannot_verify", False), "reason": c.get("reason"),
+                                     "candidates": c.get("candidates"),
                                      "name": c.get("chosen", {}).get("name"), "domain": c.get("chosen", {}).get("domain"),
                                      "total_matches": c.get("total_matches")} for c in v["companies"]],
                       "found": len(v["candidates"])} for idx, v in result.items()}
     if stage == "s4_people_screen":
-        return {idx: {k: sum(1 for s in screens if s["verdict"] == k) for k in ("pass", "review", "fail")}
+        return {idx: {k: sum(1 for s in screens if s["verdict"] == k) for k in ("pass", "review", "fail", "cannot_verify")}
                 for idx, screens in result.items()}
     if stage in ("s5_ranker", "s5b_enrich_rerank"):
         return {idx: {"panel": [card(case_id, p, names) for p in v["ranked"]], "left_off": len(v["excluded"])}
@@ -116,10 +118,10 @@ def customer_view(conn, case_id: str) -> dict:
     for idx, screens in stages.get("s4_people_screen", {}).items():
         cands = {p["person_id"]: p for p in stages["s3_sourcer"][idx]["candidates"]}
         screening[idx] = {
-            "considered": len(screens), **{k: sum(1 for s in screens if s["verdict"] == k) for k in ("pass", "review", "fail")},
+            "considered": len(screens), **{k: sum(1 for s in screens if s["verdict"] == k) for k in ("pass", "review", "fail", "cannot_verify")},
             "excluded": [{"ref": expert_ref(case_id, s["person_id"]),
                           "reasons": [r["reason"] for r in s["results"] if not r["passed"]]}
-                         for s in screens if s["verdict"] == "fail" and s["person_id"] in cands]}
+                         for s in screens if s["verdict"] in ("fail", "cannot_verify") and s["person_id"] in cands]}
     outreach = {r["status"]: r["n"] for r in conn.execute(
         "SELECT status, COUNT(*) n FROM outreach WHERE case_id=? GROUP BY status", (case_id,))}
     return {

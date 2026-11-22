@@ -193,7 +193,14 @@ def _source_and_draft(conn, case_id: str) -> None:
                     chosen, cands, pick = s3_sourcer.resolve_company(
                         conn, client, target["name"], f"{question} | {sq['text']}", case_id)
                 except LookupError:
-                    companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False})
+                    companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False,
+                                      "cannot_verify": True, "reason": "no company with this name in Crustdata"})
+                    continue
+                if pick.get("confident") is False:   # a lookalike or ambiguous name: never guess which company is meant
+                    companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False, "cannot_verify": True,
+                                      "reason": f"ambiguous company name: {pick.get('reason', '')}".strip(),
+                                      "candidates": [{"company_id": c["company_id"], "name": c["name"], "domain": c["domain"],
+                                                      "size": c["size"]} for c in cands[:4]]})
                     continue
                 found, meta, call_id = s3_sourcer.source(
                     conn, client, chosen["company_id"], today, **window, limit=25, query=f"{sq['expertise']}: {sq['text']}")
@@ -227,7 +234,7 @@ def _source_and_draft(conn, case_id: str) -> None:
             idx = str(sq["index"])
             verdict = {s["person_id"]: s["verdict"] for s in screens[idx]}
             kept = [{**p, "verdict": verdict[p["person_id"]]} for p in sourced[idx]["candidates"]
-                    if verdict[p["person_id"]] != "fail"]
+                    if verdict[p["person_id"]] in ("pass", "review")]
             result, call_id = s5_ranker.rank(conn, kept, sq["text"], sq["expertise"], case_id)
             out[idx] = {**result, "llm_call_id": call_id}
         return out

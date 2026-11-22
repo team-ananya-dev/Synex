@@ -173,3 +173,21 @@ def test_ranker_scores_in_batches_and_caps_how_many_it_scores(monkeypatch):
     assert [r["person_id"] for r in result["ranked"]] == [1, 2, 3, 4] and call_id.count(",") == 1
     assert result["excluded"] == [{"person_id": 5, "name": "A B", "score": None, "title": "Operations Manager",
                                    "why": "not scored: beyond the top 4 by search relevance"}]
+
+
+def test_missing_exit_date_is_cannot_verify_and_names_the_field():
+    s = s4_people_screen.screen(cand(end_date=None, role_path="experience.employment_details.past[2]",
+                                     record_updated_at="2026-11-16T00:43:57+00:00", source_call_id="call1"), TODAY, PARAMS)
+    assert s["verdict"] == "cannot_verify"
+    cooling = next(r for r in s["results"] if r["rule"] == "rule_cooling_off")
+    assert cooling["passed"] is None and cooling["cannot_verify"] and "no exit date" in cooling["reason"]
+    assert cooling["field_path"] == "experience.employment_details.past[2].end_date" and cooling["value"] is None
+
+
+def test_every_rule_result_carries_field_value_date_and_source():
+    s = s4_people_screen.screen(cand(role_path="experience.employment_details.past[0]", record_updated_at="2026-11-16",
+                                     source_call_id="call9"), TODAY, PARAMS)
+    assert s["verdict"] == "pass"
+    for r in s["results"]:
+        assert r["field_path"] and r["record_date"] == "2026-11-16" and r["source_call_id"] == "call9"
+    assert next(r for r in s["results"] if r["rule"] == "rule_freshness")["value"] == "2025-06-01"
