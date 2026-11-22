@@ -4,6 +4,62 @@ An expert network, rebuilt as software. A customer asks a business question. Syn
 
 Built at ContextCon 05 (theme "Services, Replaced") by Dev and Ananya.
 
+## At a glance
+
+| | |
+| --- | --- |
+| **Replaces** | an expert-network call (GLG, AlphaSights, Guidepoint) |
+| **Input** | one business question in plain text |
+| **Output** | a compliance-cleared anonymous panel, screened answers, sources and confidence per sub-question, a cited summary |
+| **Live data** | Crustdata people and company data, Claude Haiku 4.5 |
+| **Human clicks** | approve the plan, approve the anonymised invitations, accept or reject a held answer |
+| **Never** | contacts a real person, takes a payment, shows a customer a name or a link, guesses when data is missing |
+
+```mermaid
+flowchart LR
+    Q([Customer asks a question]):::you --> S1[Question screen<br/>allow, refuse or rewrite]
+    S1 --> S2[Plan<br/>3 to 5 sub-questions]
+    S2 --> A1{{Customer approves<br/>plan and panel size}}:::click
+    A1 --> S3[Find former employees<br/>Crustdata, live]
+    S3 --> S4[Compliance rules in code<br/>each cites field and date]
+    S4 -->|fail| X[Excluded, reason shown]:::stop
+    S4 -->|missing data| CV[Cannot verify,<br/>names the missing field]:::stop
+    S4 -->|pass| S5[Rank with evidence<br/>quotes checked in code]
+    S5 --> S6[Draft anonymised invitations]
+    S6 --> A2{{Customer approves<br/>the invitations}}:::click
+    A2 --> M[Email to teammate inbox<br/>sent exactly once]
+    M --> E([Expert answers<br/>on a private page]):::you
+    E --> S7[Answer screen<br/>accept, redact, hold, reject]
+    S7 --> R[Result: sources, confidence,<br/>cited summary]:::done
+    classDef you fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    classDef click fill:#4a3510,stroke:#fbbf24,color:#fff
+    classDef stop fill:#4a1010,stroke:#f87171,color:#fff
+    classDef done fill:#0f3d2e,stroke:#34d399,color:#fff
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant S as Synex
+    participant CD as Crustdata
+    participant AI as Claude
+    actor X as Expert (a teammate)
+    C->>S: question
+    S->>AI: screen and plan
+    S-->>C: plan and quote (₹, no payment taken)
+    C->>S: approve plan
+    S->>CD: identify company, search former employees, competitors, enrich shortlist
+    S->>S: rules in code, cite field, value, record date
+    S->>AI: rank (evidence quotes verified), draft invitations
+    S-->>C: anonymised invitations (no name, no link)
+    C->>S: approve invitations
+    S->>X: one email each (idempotency key, allowlist gate)
+    X->>S: answers on the private page
+    S->>AI: screen each answer
+    S-->>C: result with sources, confidence and a cited summary
+```
+
 ## The job, the input, the result and the pass mark
 
 **The job and who pays for it today.** Expert networks (GLG, AlphaSights, Guidepoint, Tegus) are paid by hedge funds, private-equity firms, consultancies and corporate strategy teams to find a former employee who can answer a question, check that talking to them is allowed, and set up a paid call. The price commonly quoted is about $500 to $1,500 per call hour (a figure from our earlier research, not verified during the build). Synex does the sourcing, the compliance screening, the invitations, the answer screening and the write-up.
