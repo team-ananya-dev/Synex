@@ -4,6 +4,8 @@ Each sub-question carries the expertise needed, short job-title phrases for the
 sourcer, and target companies. A company is "named" when it appears in the
 question (checked in code) and "inferred" otherwise. The stage knows no company.
 """
+import re
+
 from ..core import llm
 
 SCHEMA = {
@@ -45,7 +47,6 @@ def validate(question: str, reply: dict) -> None:
     subs = reply["subquestions"]
     if not 3 <= len(subs) <= 5:
         raise ValueError("return between 3 and 5 sub-questions")
-    q = question.lower()
     for i, s in enumerate(subs, 1):
         if not s["text"].strip() or not s["expertise"].strip():
             raise ValueError(f"sub-question {i} has empty text or expertise")
@@ -57,7 +58,7 @@ def validate(question: str, reply: dict) -> None:
         if not s["target_companies"]:
             raise ValueError(f"sub-question {i} needs at least one target company")
         for c in s["target_companies"]:
-            if c["basis"] == "named" and c["name"].lower() not in q:
+            if c["basis"] == "named" and not _in_question(c["name"], question):
                 raise ValueError(f"{c['name']!r} is marked named but is not in the question; mark it inferred")
 
 
@@ -74,6 +75,18 @@ def decompose(conn, question: str, case_id: str | None) -> tuple[list[dict], str
             "text": s["text"].strip(),
             "expertise": s["expertise"].strip(),
             "title_keywords": [k.strip() for k in s["title_keywords"] if k.strip()],
-            "target_companies": s["target_companies"],
+            "target_companies": _order_companies(question, s["target_companies"]),
         })
     return subs, call_id
+
+
+def _in_question(name: str, question: str) -> bool:
+    """Whole-word match, so "Ola" is not found inside "Coca-Cola"."""
+    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(name.strip())}(?![A-Za-z0-9])", question, re.I))
+
+
+def _order_companies(question: str, companies: list[dict]) -> list[dict]:
+    """Basis is decided in code: a company is "named" exactly when its name is in the question.
+    Named companies come first, so the per-sub-question company limit never drops one."""
+    out = [{"name": c["name"], "basis": "named" if _in_question(c["name"], question) else "inferred"} for c in companies]
+    return sorted(out, key=lambda c: c["basis"] != "named")

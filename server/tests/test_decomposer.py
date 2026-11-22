@@ -34,3 +34,18 @@ def test_named_company_must_appear_in_question():
     with pytest.raises(ValueError, match="not in the question"):
         validate("What does a rival do?", reply())
     validate("What does a rival do?", reply(target_companies=[{"name": "Acme", "basis": "inferred"}]))
+
+
+def test_company_in_question_is_named_and_first():
+    from app.stages.s2_decomposer import _order_companies
+    q = "How is the delivery business doing at Acme Foods?"
+    got = _order_companies(q, [{"name": "Rival Co", "basis": "inferred"}, {"name": "Acme Foods", "basis": "inferred"}])
+    assert got == [{"name": "Acme Foods", "basis": "named"}, {"name": "Rival Co", "basis": "inferred"}]
+
+
+def test_company_name_must_match_as_a_whole_word():
+    from app.stages.s2_decomposer import _order_companies
+    got = _order_companies("What is Coca-Cola doing?", [{"name": "Ola", "basis": "named"}, {"name": "Coca-Cola", "basis": "inferred"}])
+    assert got == [{"name": "Coca-Cola", "basis": "named"}, {"name": "Ola", "basis": "inferred"}]
+    with pytest.raises(ValueError, match="not in the question"):
+        validate("What is Coca-Cola doing?", reply(target_companies=[{"name": "Ola", "basis": "named"}]))
