@@ -1,0 +1,148 @@
+{
+  "request": {
+    "type": "screen_former_employee",
+    "target_company": {
+      "crustdata_company_id": 622940,
+      "name": "Zepto"
+    },
+    "rules": {
+      "min_left_months": 6,
+      "max_left_months": 24,
+      "min_years": 1
+    },
+    "as_of": "2026-11-22"
+  },
+  "sources": {
+    "person_record": {
+      "endpoint": "/person/search",
+      "call_id": "dfefa924964442d4b8f366d732a9815d",
+      "retrieved_at": "2026-11-22T06:05:12.263297+00:00",
+      "record_updated_at": "2026-11-16T00:13:57+00:00"
+    },
+    "competitor_list": {
+      "endpoint": "/company/enrich",
+      "call_id": "be9242ffd3a74a429af1e3bb1406ef51",
+      "field": "competitors.organic_seo, competitors.paid_seo",
+      "domains": [
+        "bigbasket.com",
+        "blinkit.com",
+        "dmart.in",
+        "flipkart.com",
+        "instamart.in"
+      ]
+    }
+  },
+  "record_excerpt": {
+    "crustdata_person_id": 6049,
+    "metadata": {
+      "updated_at": "2026-11-16T00:13:57+00:00"
+    },
+    "experience": {
+      "employment_details": {
+        "past": [
+          {
+            "crustdata_company_id": 622940,
+            "name": "Zepto",
+            "title": "Senior Product Manager",
+            "start_date": "2023-09-01T00:00:00",
+            "end_date": "2025-03-01T00:00:00",
+            "company_website": "https://www.zepto.com/",
+            "seniority_level": "Entry Level Manager"
+          },
+          {
+            "crustdata_company_id": 610122,
+            "name": "Krishify",
+            "title": "Senior Product Manager",
+            "start_date": "2022-06-01T00:00:00",
+            "end_date": "2023-05-01T00:00:00",
+            "company_website": "https://krishify.com/#overview",
+            "seniority_level": "Entry Level Manager"
+          },
+          {
+            "crustdata_company_id": 6014,
+            "name": "Shipsy",
+            "title": "Senior Solutions Architect - Product Team",
+            "start_date": "2021-11-01T00:00:00",
+            "end_date": "2022-06-01T00:00:00",
+            "company_website": "https://www.shipsy.ai",
+            "seniority_level": "Senior"
+          },
+          {
+            "crustdata_company_id": 6014,
+            "name": "Shipsy",
+            "title": "Solutions Architect - Product Team",
+            "start_date": "2020-12-01T00:00:00",
+            "end_date": "2021-10-01T00:00:00",
+            "company_website": "https://www.shipsy.ai",
+            "seniority_level": "Entry Level"
+          },
+          {
+            "crustdata_company_id": 1135355,
+            "name": "boodmo - spare parts expert",
+            "title": "Product Manager",
+            "start_date": "2020-02-01T00:00:00",
+            "end_date": "2020-10-01T00:00:00",
+            "company_website": "http://boodmo.com",
+            "seniority_level": "Entry Level Manager"
+          },
+          {
+            "crustdata_company_id": 6014,
+            "name": "Shipsy",
+            "title": "Associate Product Manager",
+            "start_date": "2019-02-01T00:00:00",
+            "end_date": "2020-01-01T00:00:00",
+            "company_website": "https://www.shipsy.ai",
+            "seniority_level": "Entry Level Manager"
+          },
+          {
+            "crustdata_company_id": 14960,
+            "name": "GarageOnRoad",
+            "title": "Founder/ Director",
+            "start_date": "2016-06-01T00:00:00",
+            "end_date": "2020-01-01T00:00:00",
+            "company_website": "http://GarageOnRoad.com",
+            "seniority_level": "Owner / Partner"
+          },
+          {
+            "crustdata_company_id": 6089073,
+            "name": "Amar Ujala Limited",
+            "title": "Assistant Product Manager",
+            "start_date": "2018-03-01T00:00:00",
+            "end_date": "2019-01-01T00:00:00",
+            "company_website": "http://www.amarujala.com",
+            "seniority_level": "Entry Level Manager"
+          },
+          {
+            "crustdata_company_id": 0,
+            "name": "Build Maint.",
+            "title": "Founder",
+            "start_date": "2014-05-01T00:00:00",
+            "end_date": "2018-03-01T00:00:00",
+            "company_website": "",
+            "seniority_level": "Owner / Partner"
+          }
+        ],
+        "current": [
+          {
+            "crustdata_company_id": 622940,
+            "name": "Zepto",
+            "title": "Group Product Manager",
+            "start_date": "2025-04-01T00:00:00",
+            "end_date": null,
+            "company_website": "https://www.zepto.com/",
+            "seniority_level": "Entry Level Manager"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "verdict": "fail",
+    "failed_rules": [
+      "rule_not_current"
+    ],
+    "cannot_verify_rules": []
+  },
+  "why": "A past Zepto role ended in Mar 2025, but the record still lists Zepto as a current employer: rule 1 fails.",
+  "note": "Real Crustdata responses from runs on 2026-11-22, reduced to the fields the rules read. Names, headlines, locations and profile links are removed."
+}
