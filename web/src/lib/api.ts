@@ -160,6 +160,35 @@ export type Approval = {
 
 export type Approver = "dev" | "ananya";
 
+// ---- expert page (GET /expert/{token}); no customer, no other experts, no contact details ----
+
+export type ExpertPage =
+  | { available: false; reason: string }
+  | {
+      available: true;
+      first_name: string | null;
+      persona: { role: string | null; company: string | null; tenure_months: number | null };
+      subquestions: { index: number; text: string }[];
+      submitted: boolean;
+      payout: { per_accepted_answer: number; currency: string };
+    };
+
+export type AnswerKind = "answer" | "dont_know" | "confidential";
+export type Confidence = "low" | "medium" | "high";
+
+export const ATTESTATIONS = [
+  ["not_current_employee", "I do not currently work at this company."],
+  ["left_as_shown", "The role and company shown above are where I worked."],
+  ["no_blocking_confidentiality", "No confidentiality agreement stops me from discussing this topic."],
+  ["no_confidential_info", "I will not share confidential, NDA-covered or non-public financial information."],
+] as const;
+
+export type Submission = {
+  mode: "form" | "voice" | "text";
+  attestations: Record<string, boolean>;
+  answers: { index: number; kind: AnswerKind; text: string; confidence: Confidence | null }[];
+};
+
 export type SynexEvent = { id: number; type: string; at: string; [field: string]: unknown };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -172,7 +201,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail ?? body);
+      if (typeof body.detail === "string") detail = body.detail;
+      // FastAPI validation errors: a list of {msg}; show the messages, not the JSON
+      else if (Array.isArray(body.detail)) detail = body.detail.map((d: { msg?: string }) => d.msg?.replace(/^Value error, /, "")).join("; ");
+      else detail = JSON.stringify(body.detail ?? body);
     } catch {
       // body was not JSON; keep the status text
     }
@@ -197,6 +229,12 @@ export const api = {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
     return request<Approval[]>(`/approvals${q.size ? `?${q}` : ""}`);
   },
+  // expert page
+  getExpertPage: (token: string) => request<ExpertPage>(`/expert/${token}`),
+  submitResponses: (token: string, body: Submission) =>
+    request<{ received: { response_id: string; subquestion_index: number; kind: AnswerKind }[] }>(
+      `/expert/${token}/responses`, { method: "POST", body: JSON.stringify(body) },
+    ),
   decide: (id: number, decision: "approve" | "reject", approver: Approver) =>
     request<Approval>(`/approvals/${id}/${decision}`, { method: "POST", body: JSON.stringify({ approver }) }),
 };
