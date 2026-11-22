@@ -327,3 +327,10 @@ def test_cannot_verify_people_stay_off_the_panel(api, monkeypatch):
     assert verdicts[1] == "cannot_verify" and v["stages"]["s5_ranker"]["1"]["ranked"] == []
     sc = client.get(f"/customer/cases/{cid}").json()["screening"]["1"]
     assert sc["cannot_verify"] == 1 and any("cannot verify" in r for e in sc["excluded"] for r in e["reasons"])
+
+
+def test_each_company_is_identified_once_per_case(api):
+    client, _ = api
+    SEEN.clear()
+    start(client)                      # two sub-questions, both naming Acme
+    assert sum(1 for path, _ in SEEN if path == "/company/identify") == 1

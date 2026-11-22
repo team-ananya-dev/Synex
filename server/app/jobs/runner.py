@@ -184,14 +184,29 @@ def _source_and_draft(conn, case_id: str) -> None:
                 competitor_memo[company_id] = (None, None)
         return competitor_memo[company_id]
 
+    resolve_memo: dict[str, object] = {}
+
+    def resolve(name: str, context: str):
+        """Resolve each company name once per case: the same names recur in every sub-question, and the identify
+        endpoint allows only a few calls a minute."""
+        key = name.strip().lower()
+        if key not in resolve_memo:
+            try:
+                resolve_memo[key] = s3_sourcer.resolve_company(conn, client, name, context, case_id)
+            except LookupError as e:
+                resolve_memo[key] = e
+        found = resolve_memo[key]
+        if isinstance(found, LookupError):
+            raise found
+        return found
+
     def source_all():
         out = {}
         for sq in work:
             companies, people, seen = [], [], set()
             for target in sq["target_companies"][: config.max_companies_per_subquestion()]:
                 try:
-                    chosen, cands, pick = s3_sourcer.resolve_company(
-                        conn, client, target["name"], f"{question} | {sq['text']}", case_id)
+                    chosen, cands, pick = resolve(target["name"], question)
                 except LookupError:
                     companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False,
                                       "cannot_verify": True, "reason": "no company with this name in Crustdata"})

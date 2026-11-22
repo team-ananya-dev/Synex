@@ -8,6 +8,7 @@ A per-case credit cap applies in every mode.
 import hashlib
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -20,6 +21,24 @@ from ..core.events import append_event
 BASE_URL = "https://api.crustdata.com"
 API_VERSION = "2025-11-01"
 LIMITED_ENDPOINTS = {"/person/search", "/company/search", "/job/search"}
+
+# Requests per minute our account reported for each endpoint (GET /account/endpoints). Calls are spaced to stay under.
+RATE_PER_MINUTE = {"/company/identify": 5, "/company/enrich": 15, "/person/search": 30, "/person/enrich": 15}
+_last_call: dict[str, float] = {}
+_pace_lock = threading.Lock()
+
+
+def _pace(endpoint: str) -> None:
+    """Wait until this endpoint may be called again. Shared by every case running in this process."""
+    rpm = RATE_PER_MINUTE.get(endpoint)
+    if not rpm:
+        return
+    gap = 60.0 / rpm * 1.05
+    with _pace_lock:
+        wait = _last_call.get(endpoint, 0.0) + gap - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_call[endpoint] = time.monotonic()
 
 
 class CreditCapExceeded(RuntimeError):
@@ -44,6 +63,7 @@ class CrustdataClient:
         self.conn = conn
         self.case_id = case_id
         self.credit_cap = credit_cap
+        self._paced = transport is None   # pacing applies to the real API, not to a test transport
         self._http = httpx.Client(
             base_url=BASE_URL,
             timeout=60,
@@ -80,6 +100,8 @@ class CrustdataClient:
         resp = None
         for attempt in range(3):  # a network error (DNS, reset, timeout) is retried twice before it counts
             try:
+                if self._paced:
+                    _pace(endpoint)
                 resp = self._http.post(endpoint, json=body)
                 break
             except httpx.TransportError as e:
@@ -88,8 +110,12 @@ class CrustdataClient:
                     call_id = self._log(endpoint, body, purpose, 0, 0.0, latency, None, f"{type(e).__name__}: {e}", False)[1]
                     raise CrustdataError(0, f"{type(e).__name__}: {e}", call_id) from e
                 time.sleep(1 + attempt)
-        if resp.status_code == 429:
-            time.sleep(float(resp.headers.get("Retry-After", 3)))
+        for wait in (15, 30, 45):  # rate limited: wait (or as long as the server asks) and try again, three times
+            if resp.status_code != 429:
+                break
+            time.sleep(float(resp.headers.get("Retry-After") or wait))
+            if self._paced:
+                _pace(endpoint)
             resp = self._http.post(endpoint, json=body)
         latency = int((time.monotonic() - started) * 1000)
         credits = float(resp.headers.get("X-Credits-Used") or 0)
