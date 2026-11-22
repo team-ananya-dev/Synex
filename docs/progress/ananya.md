@@ -23,3 +23,11 @@ Contracts touched: none.
 
 Libraries and tools to credit in the README (rule 7): Next.js 16.4.6, React 19.3.0, Tailwind CSS 4.3.3, TypeScript, ESLint with eslint-config-next (all npm, from create-next-app).
 Commands run (rule 10): `npx --yes create-next-app@latest web --ts --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm --no-turbopack --disable-git --yes`; `npm install` (inside the generator).
+
+## 2026-11-22 14:04 IST ananya expert-contracts
+Done: appended the expert page routes (`GET /expert/{token}`, `POST /expert/{token}/responses`) to `contracts/API.md`, the `response.received` event to `contracts/EVENTS.md`, and response mode, kind and confidence values to `contracts/ENUMS.md`. Additive only.
+In progress: the expert page itself (next commit).
+Next: see the next entry.
+Decisions: `response.received` never carries answer text or personal data, so the customer stream can pass it through.
+Blocked on: nothing.
+Contracts touched: API.md, EVENTS.md, ENUMS.md (this commit).

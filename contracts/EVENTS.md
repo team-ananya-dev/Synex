@@ -46,3 +46,9 @@ The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need
 | `ledger.release` | `amount`, `currency`, `ref`, `by` | Unused hold released. |
 
 `job.paused` now also happens at `PLANNED`. The customer stream (`/customer/cases/{id}/events`) removes personal data as described in `API.md`.
+
+## Added 2026-11-22 (Ananya, expert page)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `response.received` | `response_id`, `subquestion_index`, `kind` (`answer`, `dont_know`, `confidential`), `mode` | An expert answered one sub-question. No answer text and no personal data, so the customer stream can pass it through unchanged. |

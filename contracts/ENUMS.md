@@ -33,3 +33,7 @@ Stage name `s6_outreach_writer`. Case state `AWAITING_APPROVAL` is now set by th
 ## Added 2026-11-22 (plan approval and ledger)
 
 `PLANNED` is now a waiting state: the job pauses there until the customer approves the plan. Ledger kinds: `HOLD`, `CAPTURE`, `RELEASE`. Ledger currency is always `USD (simulated)`.
+
+## Added 2026-11-22 (Ananya, expert page)
+
+Response `mode`: `form`, `voice`, `text`. Response `kind`: `answer`, `dont_know`, `confidential`. Self-rated `confidence`: `low`, `medium`, `high`. Case state `COLLECTING` is set by the first expert response.
