@@ -171,6 +171,12 @@ Every state change, approval, screen verdict, mail event and model or Crustdata 
 
 The browser voice interview (the expert page is a form), the closed-period rule, a do-not-contact table, per-role city data (independence uses the profile's current city), and any real payment.
 
+### Open questions for the organisers
+
+- Is a development-time cache of real Crustdata responses allowed, if it is off for the finals run?
+- Is a teammate typing a persona's answer on the expert page acceptable?
+- Does one customer click on a batch of anonymised invitations count as "a person's approval" for each email? Until answered, this README describes it exactly as above and claims nothing more.
+
 ## 4. How it runs
 
 ### Run it locally
@@ -227,38 +233,11 @@ contracts/  agreed API, event and enum definitions, append-only
 docs/     architecture, plan, progress logs, notes between the two builders
 ```
 
-## 5. What we tried
-
-| Tried | What happened | What we do now |
-| --- | --- | --- |
-| Finding a company by its name | "Zepto" matched 25 companies, 8 of them with full confidence (a payments firm in Australia among them) | resolve the name once to a Crustdata company id, from the question's context; if unsure, **cannot verify** with the candidates listed |
-| Job-title keyword filters | the first 5 of 2,297 matches were random roles | Crustdata's relevance search inside hard filters (exit window, tenure, not still employed) |
-| Letting the model justify its ranking | it claimed "dark store experience" that was in no profile | every evidence quote is checked against the record in code; unsupported scores are capped |
-| Operators approving each email | does not scale and is not what the customer agreed to | the customer approves the anonymised batch; each email is still its own logged approval |
-| A simulated payment ledger | looked like payments the service does not make | removed; a rupee quote labelled "no payment taken" |
-| Apollo or ContactOut for expert emails | would contact real people and add an unapproved data source | experts are teammates on an allowlist; mail goes to a local inbox |
-| Demo-mode runs on the hosted API | hit Crustdata's 5-per-minute limit on company lookups (429) | one lookup per company per case, paced calls, wait-and-retry on 429 |
-
-## 6. Why this way
-
-- **Rules in code, not in a prompt.** Every compliance decision is a plain function that names the field, value and record date it used, so a judge (or a regulator) can read why a person was excluded.
-- **Cannot verify beats a guess.** Missing dates, ambiguous companies and unsettled questions are reported as such and never contacted.
-- **The customer never sees who the expert is.** Anonymous cards and previews keep the network in the loop and protect the experts.
-- **A person approves everything irreversible.** The plan before any credit is spent, and every invitation before it is sent.
-- **Exactly once, by construction.** An idempotency key that travels in the email itself means a kill at any moment cannot send twice.
-- **Everything is logged.** A hash-chained audit trail and a cost log for every Crustdata and model call.
-
-## Open questions for the organisers
-
-- Is a development-time cache of real Crustdata responses allowed, if it is off for the finals run?
-- Is a teammate typing a persona's answer on the expert page acceptable?
-- Does one customer click on a batch of anonymised invitations count as "a person's approval" for each email? Until answered, this README describes it exactly as above and claims nothing more.
-
-## How it was built
+### How it was built
 
 Written from empty folders during the build. `CLAUDE.md`, `.claude/` (three helper agents and two commands) and `docs/` (plan, rulebook, notes) were prepared before the build and contain no application code. Both builders used Claude Code, an AI coding tool. Commit history is unedited.
 
-## Credits
+### Credits
 
 **Backend (pip):** [FastAPI](https://github.com/fastapi/fastapi), [Uvicorn](https://github.com/encode/uvicorn), [httpx](https://github.com/encode/httpx), [pydantic](https://github.com/pydantic/pydantic) (a FastAPI dependency), [pytest](https://github.com/pytest-dev/pytest), the [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python). Environment management with [uv](https://github.com/astral-sh/uv).
 
@@ -279,3 +258,24 @@ uv pip install -r requirements.txt --python .venv/bin/python
 Mailpit was downloaded from its GitHub release page and its checksum was checked.
 
 **Landing page:** the pond is drawn in code on a canvas with no image files. Its look was inspired by a pixel-art koi pond illustration and by the playful feel of other pixel games; no art, code or assets were copied.
+
+## 5. What we tried
+
+| Tried | What happened | What we do now |
+| --- | --- | --- |
+| Finding a company by its name | "Zepto" matched 25 companies, 8 of them with full confidence (a payments firm in Australia among them) | resolve the name once to a Crustdata company id, from the question's context; if unsure, **cannot verify** with the candidates listed |
+| Job-title keyword filters | the first 5 of 2,297 matches were random roles | Crustdata's relevance search inside hard filters (exit window, tenure, not still employed) |
+| Letting the model justify its ranking | it claimed "dark store experience" that was in no profile | every evidence quote is checked against the record in code; unsupported scores are capped |
+| Operators approving each email | does not scale and is not what the customer agreed to | the customer approves the anonymised batch; each email is still its own logged approval |
+| A simulated payment ledger | looked like payments the service does not make | removed; a rupee quote labelled "no payment taken" |
+| Apollo or ContactOut for expert emails | would contact real people and add an unapproved data source | experts are teammates on an allowlist; mail goes to a local inbox |
+| Demo-mode runs on the hosted API | hit Crustdata's 5-per-minute limit on company lookups (429) | one lookup per company per case, paced calls, wait-and-retry on 429 |
+
+## 6. Why this way
+
+- **Rules in code, not in a prompt.** Every compliance decision is a plain function that names the field, value and record date it used, so a judge (or a regulator) can read why a person was excluded.
+- **Cannot verify beats a guess.** Missing dates, ambiguous companies and unsettled questions are reported as such and never contacted.
+- **The customer never sees who the expert is.** Anonymous cards and previews keep the network in the loop and protect the experts.
+- **A person approves everything irreversible.** The plan before any credit is spent, and every invitation before it is sent.
+- **Exactly once, by construction.** An idempotency key that travels in the email itself means a kill at any moment cannot send twice.
+- **Everything is logged.** A hash-chained audit trail and a cost log for every Crustdata and model call.
