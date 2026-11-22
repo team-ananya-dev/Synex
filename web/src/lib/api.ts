@@ -329,6 +329,18 @@ export const api = {
   // stage 8 result
   result: (id: string) => request<CaseResult>(`/customer/cases/${id}/result`),
   writeSummary: (id: string) => request<CaseResult>(`/customer/cases/${id}/result/summary`, { method: "POST" }),
+  // client report: prepare writes the summary and overview (safe to repeat), then the PDF is downloaded as a file
+  prepareReport: (id: string) =>
+    request<{ case_id: string; summary: string; overview: string; overview_error: string | null; ready: boolean }>(`/customer/cases/${id}/report/prepare`, { method: "POST" }),
+  downloadReport: async (id: string): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/customer/cases/${id}/report.pdf`, { cache: "no-store" });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = (await res.json()).detail ?? detail; } catch { /* not JSON */ }
+      throw new Error(`${res.status}: ${detail}`);
+    }
+    return res.blob();
+  },
   closeCase: (id: string) =>
     request<{ id: string; state: CaseState; answered_subquestions: number[] }>(`/customer/cases/${id}/close`, { method: "POST" }),
   // expert page

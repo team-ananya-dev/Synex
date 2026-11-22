@@ -593,6 +593,34 @@ function ResultTab({ caseId, events }: { caseId: string; events: SynexEvent[] })
     }
   }
 
+  const [report, setReport] = useState<"idle" | "writing" | "building">("idle");
+  async function downloadReport() {
+    setReport("writing");
+    setError(null);
+    try {
+      const prep = await api.prepareReport(caseId);
+      setReport("building");
+      const blob = await api.downloadReport(caseId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `synex-report-${caseId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setResult(await api.result(caseId));
+      if (prep.overview !== "written") {
+        setError("The report was built without its written overview because the model was unavailable. The experts' answers, the figures and the audit appendix are all in it.");
+      }
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg.startsWith("409") ? "There is no accepted answer to report on yet." : `Could not build the report: ${msg}`);
+    } finally {
+      setReport("idle");
+    }
+  }
+
   async function close() {
     if (!window.confirm("Close this case? Expert links will stop taking answers and the result becomes final.")) return;
     setBusy(true);
@@ -619,9 +647,17 @@ function ResultTab({ caseId, events }: { caseId: string; events: SynexEvent[] })
           Confidence and sources are computed in code from screened answers: High needs 3 independent sources, Medium 2, Low 1.
         </span>
         <button
+          onClick={downloadReport}
+          disabled={busy || report !== "idle" || answered === 0}
+          title="A client report as a PDF: executive summary, findings, the experts' answers, method, audit trail and cost"
+          className="ml-auto rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-40"
+        >
+          {report === "writing" ? "Writing summary and overview…" : report === "building" ? "Building PDF…" : "Download report (PDF)"}
+        </button>
+        <button
           onClick={summarise}
           disabled={busy || answered === 0 || result.summary_status === "written"}
-          className="ml-auto rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-40"
+          className="rounded-md border border-zinc-700 px-3 py-2 text-sm disabled:opacity-40"
         >
           {busy ? "Writing…" : result.summary_status === "written" ? "Summary written" : result.summary_status === "stale" ? "Update summary" : "Write summary"}
         </button>
