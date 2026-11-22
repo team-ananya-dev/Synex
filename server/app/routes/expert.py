@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
 from ..actions.ledger import CURRENCY
@@ -18,8 +18,11 @@ from ..actions.queue import expert_context
 from ..core import db
 from ..core.events import append_event
 from ..jobs import runner
+from ..stages import s7_response_screen
+from .responses import router as responses_router
 
 router = APIRouter()
+router.include_router(responses_router)  # screened responses ride on this router, so main.py needs no change
 
 # Simulated payout shown to the expert. A policy setting, not a result; no money moves.
 PAYOUT_PER_ACCEPTED_ANSWER = float(os.environ.get("SYNEX_EXPERT_PAYOUT", "50"))
@@ -94,7 +97,7 @@ def get_expert_page(token: str):
 
 
 @router.post("/expert/{token}/responses", status_code=201)
-def submit_responses(token: str, body: Submission):
+def submit_responses(token: str, body: Submission, tasks: BackgroundTasks):
     conn = db.connect()
     try:
         ctx = _context_or_404(conn, token)
@@ -128,6 +131,7 @@ def submit_responses(token: str, body: Submission):
         state = conn.execute("SELECT state FROM cases WHERE id=?", (ctx["case_id"],)).fetchone()["state"]
         if state == "AWAITING_APPROVAL":
             runner.set_state(conn, ctx["case_id"], "COLLECTING")
+        tasks.add_task(s7_response_screen.screen_responses, [c["response_id"] for c in created])  # stage 7
         return {"received": created}
     finally:
         conn.close()

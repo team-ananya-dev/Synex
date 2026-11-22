@@ -66,3 +66,11 @@ Next: see next entries.
 Decisions: `response.screened` carries no text or reason. Held answers are reviewed by team members only (not the customer).
 Blocked on: nothing.
 Contracts touched: API.md, EVENTS.md, ENUMS.md (this commit).
+
+## 2026-11-22 14:38 IST ananya stage7-server
+Done: stage 7 response screen. `server/app/stages/s7_response_screen.py` (small model proposes accepted / redacted / held / rejected with exact quotes; code verifies quotes, holds on leak phrases or an unverifiable reply, records dont_know / confidential as rejected without a model call). `response_screens` table in `server/app/db/schema_expert.sql` (append-only). Routes `server/app/routes/responses.py`: customer responses and coverage, operator held list, team-member accept / reject. Screening runs in the background after each submission (`server/app/routes/expert.py`). Tests `server/tests/test_response_screen.py` (7); full suite 90 pass.
+In progress: nothing.
+Next: web Live tab and operator held queue (next commit); then customer "Review invitations" step; then stage 8.
+Decisions: held answers are reviewed by team members only; a review adds a row, never edits text.
+Blocked on: Dev, large model price for stage 8.
+Contracts touched: previous commit.

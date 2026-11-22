@@ -22,3 +22,23 @@ CREATE TRIGGER IF NOT EXISTS responses_no_update BEFORE UPDATE ON responses
 BEGIN SELECT RAISE(ABORT, 'responses is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS responses_no_delete BEFORE DELETE ON responses
 BEGIN SELECT RAISE(ABORT, 'responses is append-only'); END;
+
+-- Stage 7: one row per screening decision. The first row comes from the screen; a held response gets a
+-- second row when a team member accepts or rejects it. Readers take the latest row per response_id.
+CREATE TABLE IF NOT EXISTS response_screens (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    response_id     TEXT NOT NULL,
+    verdict         TEXT NOT NULL,          -- accepted | redacted | held | rejected
+    reason          TEXT NOT NULL,
+    redacted_text   TEXT,                   -- the answer with flagged spans removed, only for redacted
+    flagged_spans   TEXT NOT NULL,          -- JSON list of exact quotes the screen flagged (verified in code)
+    code_flags      TEXT NOT NULL,          -- JSON list of risk phrases found by the code rule
+    llm_call_id     TEXT,                   -- the model call behind this verdict, null for code-only or human rows
+    decided_by      TEXT NOT NULL,          -- "screen", or the team member who reviewed a held response
+    created_at      TEXT NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS response_screens_no_update BEFORE UPDATE ON response_screens
+BEGIN SELECT RAISE(ABORT, 'response_screens is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS response_screens_no_delete BEFORE DELETE ON response_screens
+BEGIN SELECT RAISE(ABORT, 'response_screens is append-only'); END;
