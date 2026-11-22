@@ -65,7 +65,7 @@ def _squash(text: str | None) -> str:
 
 def competitor_roles(c: dict, competitor_hosts: list[str]) -> list[dict]:
     """Current roles at a direct competitor or listed partner. A role matches when the employer's website
-    is a competitor domain, or its name equals a competitor's domain name (Instamart vs instamart.in)."""
+    is a competitor domain, or its name equals a competitor's domain name (Quickmart vs quickmart.in)."""
     labels = {h.split(".")[0] for h in competitor_hosts}
     out = []
     for r in c.get("current_roles", []):

@@ -7,7 +7,7 @@ from app.core import db, llm
 from app.stages import s3_sourcer, s4_people_screen, s5_ranker
 
 TODAY = date(2026, 11, 22)
-PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1, "competitor_domains": ["rival.com", "instamart.in"]}
+PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1, "competitor_domains": ["rival.com", "quickmart.in"]}
 
 
 def cand(**kw):
@@ -56,7 +56,7 @@ def test_rule4_lesser_role_at_competitor_is_a_review_flag():
 
 
 def test_rule4_matches_employer_by_name_when_domains_differ():
-    c = cand(current_roles=[role(name="Instamart", website="https://www.swiggy.com/", title="Store Manager", seniority="Experienced Manager")])
+    c = cand(current_roles=[role(name="Quickmart", website="https://www.parent-group.example/", title="Store Manager", seniority="Experienced Manager")])
     assert s4_people_screen.screen(c, TODAY, PARAMS)["verdict"] == "fail"
 
 
