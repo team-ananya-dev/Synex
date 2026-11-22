@@ -66,3 +66,9 @@ The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need
 | Type | Extra fields | Meaning |
 | --- | --- | --- |
 | `response.screened` | `response_id`, `subquestion_index`, `verdict`, `by` (`screen` or the team member who reviewed a held answer) | A screening decision. No answer text and no reason, so the customer stream can pass it through unchanged. |
+
+## Added 2026-11-22 (Ananya, several questions per expert)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `questions.assigned` | `experts`, `questions_per_expert`, `questions_total`, `method` (`model`, `model+rule`, `rule`) | Stage 6 gave every invited expert a fixed number of questions. No names or ids in the payload, so the customer stream passes it through. |

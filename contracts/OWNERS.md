@@ -41,3 +41,8 @@ Written 2026-11-22 by Dev. Append-only: a change needs a message to the other pe
 The teammate mail allowlist and the list of registered approvers are hard-coded in `server/app/actions/mail.py` (Dev). Table `outreach` is Dev's.
 
 Tables `ledger` (append-only) and `cases`, `stage_results` are Dev's.
+
+## Added 2026-11-22 (Ananya)
+| Variable | Meaning |
+| --- | --- |
+| `SYNEX_QUESTIONS_PER_EXPERT` | Questions each invited expert gets (default 3, at most 5, never more than the plan has). Set in `server/app/question_assignment.py`. |

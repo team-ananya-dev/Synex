@@ -6,6 +6,7 @@ exactly one link, no other URL, payment labelled simulated, no name leaked.
 """
 import re
 
+from .. import question_assignment
 from ..actions import mail, queue
 from ..core import config, llm
 
@@ -21,7 +22,7 @@ SYSTEM = (
     "Say clearly: it is voluntary; answers are screened and must not contain confidential or non-public company "
     "information; they are paid per accepted answer, and in this demonstration the payment is simulated; the private link "
     "is {{link}} (write it exactly like that, once). Mention their past role only in general terms. "
-    "Plain text only: no markdown, no asterisks, no headings. Under 150 words. Do not mention who the customer is. Do not invent facts. No other links. Sign off as 'The Synex team'."
+    "Plain text only: no markdown, no asterisks, no headings. Say how many questions there are and that each can be answered, skipped with 'I don\'t know', or declined if it would need confidential information. Under 220 words including the questions. Do not mention who the customer is. Do not invent facts. No other links. Sign off as 'The Synex team'."
 )
 
 
@@ -42,8 +43,8 @@ def validate(draft: dict, name: str | None) -> None:
     for part in (name or "").split():
         if len(part) > 2 and re.search(rf"\b{re.escape(part)}\b", body, re.I):
             raise ValueError("do not use the person's name; use {{first_name}}")
-    if len(body.split()) > 220:
-        raise ValueError("keep the email under 150 words")
+    if len(body.split()) > 300:
+        raise ValueError("keep the email under 220 words, the questions included")
 
 
 def spread_by_company(panel: list[dict], n: int) -> list[dict]:
@@ -70,6 +71,7 @@ def write_drafts(conn, case_id: str, subs: list[dict], panels: dict[str, list[di
         for person in spread_by_company(panels.get(idx, []), per_subquestion):
             entry = chosen.setdefault(person["person_id"], {"person": person, "subs": []})
             entry["subs"].append(sq)
+    question_assignment.assign(conn, case_id, chosen, subs, panels)   # top each expert up to a fixed few questions
     out = []
     for n, (person_id, entry) in enumerate(chosen.items()):
         p, sqs = entry["person"], entry["subs"]

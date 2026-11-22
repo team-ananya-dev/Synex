@@ -112,7 +112,7 @@ Eight stages. Details and diagrams are in [`docs/ARCHITECTURE.md`](docs/ARCHITEC
 | 3 | Sourcing | Finds the company record by id, then searches Crustdata for people who held a role there that ended inside the window. | Crustdata; model only picks among returned ids |
 | 4 | People screen | Fixed rules, each returning pass or fail with a reason. | code |
 | 5 | Ranking | Scores each remaining person against the sub-question and must quote evidence from the profile. Code drops any quote it cannot find. | small model, code check |
-| 6 | Invitations | Drafts one anonymised invitation per expert. The customer approves them before anything is sent. | small model, customer click |
+| 6 | Invitations | Drafts one anonymised invitation per expert, with a fixed small number of questions each (default 3, `SYNEX_QUESTIONS_PER_EXPERT`): the expert's own question first, then others that fit their role, chosen by the small model and topped up by a rule so the count never depends on the model. The expert can answer, say "I don't know", or decline any question. The customer approves the invitations before anything is sent. | small model, rule, customer click |
 | 7 | Response screen | Each answer is accepted, redacted, held for a team member, or rejected. | small model proposes, code verifies |
 | 8 | Result | Counts independent sources, sets the label and confidence, and writes a short summary. | code, then small model for wording |
 

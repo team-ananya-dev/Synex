@@ -6,6 +6,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, ATTESTATIONS, type AnswerKind, type Confidence, type ExpertPage } from "@/lib/api";
+import { Pond } from "@/components/landing/Pond";
 
 type Draft = { kind: AnswerKind; text: string; confidence: Confidence | null };
 type Step = "landing" | "form" | "review" | "done";
@@ -40,8 +41,9 @@ export function ExpertView() {
   }, [token]);
 
   return (
-    <div className="flex min-h-screen justify-center bg-background">
-      <div className="box-border flex min-h-screen w-full max-w-[520px] flex-col">
+    <div className="flex min-h-screen justify-center">
+      <Pond quiet />
+      <div className="box-border flex min-h-screen w-full max-w-[520px] flex-col bg-background/70 backdrop-blur-sm">
         <div className="flex items-center gap-2.5 border-b border-line px-[22px] py-4">
           <span className="text-base font-semibold">Synex</span>
           <span className="ml-auto font-mono text-[11px] text-zinc-500">private link · no login</span>
@@ -105,7 +107,7 @@ export function ExpertView() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Stat value={`$${page.payout.per_accepted_answer.toFixed(0)}`} label="per accepted answer · simulated" />
-              <Stat value="~10 min" label="by form" />
+              <Stat value={`${subquestions.length} question${subquestions.length === 1 ? "" : "s"}`} label={`about ${Math.max(3, subquestions.length * 3)} minutes · skip any you cannot answer`} />
             </div>
             <div className="flex flex-col gap-1.5 text-[13px] leading-normal text-zinc-300">
               <span className="text-[11px] uppercase tracking-[.06em] text-zinc-500">Ground rules</span>

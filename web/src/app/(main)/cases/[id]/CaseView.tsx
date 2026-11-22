@@ -534,6 +534,7 @@ function eventDetail(e: SynexEvent): string {
     case "mail.sent": return `draft ${e.outreach_id}`;
     case "mail.blocked": return `draft ${e.outreach_id} · ${e.reason}`;
     case "response.received": return `${e.response_id} · sub-question ${e.subquestion_index} · ${e.kind}`;
+    case "questions.assigned": return `${e.questions_per_expert} questions per expert · ${e.questions_total} in total · ${e.method === "model" ? "matched to experience" : "by rule"}`;
     case "response.screened": return `${e.response_id} · ${e.verdict}${e.by && e.by !== "screen" ? ` · by ${e.by}` : ""}`;
     case "job.paused": return String(e.reason ?? "");
     default:

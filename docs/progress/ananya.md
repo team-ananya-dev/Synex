@@ -261,3 +261,11 @@ Next: demo video.
 Decisions: Dev's rate-limit handling wins; the note to Dev says so.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 17:45 IST ananya multi-question-experts
+Done: each invited expert now gets a fixed small number of questions (default 3, `SYNEX_QUESTIONS_PER_EXPERT`), not only the one they were picked for. `server/app/question_assignment.py` (new): one small-model call lists, per expert, the sub-questions that fit their role (no names); code takes the list in order and fills any shortfall by rule, so the count never depends on the model (the first version asked the model for an exact count and Haiku ignored it). Called from `server/app/stages/s6_outreach_writer.py` (Dev's file) before drafting; email prompt says how many questions and that each can be skipped or declined; word limit raised from 220 to 300 because the questions are in the email. Expert page shows the question count and a time estimate (`web/src/app/expert/[token]/ExpertView.tsx`); new event `questions.assigned` shown live. 162 tests pass (8 new in `server/tests/test_assignment.py`). Checked live with the real model: 6 experts, 3 questions each, model call valid on the first attempt, emails 181 to 209 words.
+In progress: nothing.
+Next: PDF report; company-picker fix.
+Decisions: edited Dev's s6 at Ananya's request. Build confirmed still open by Ananya (freeze time not given).
+Blocked on: nothing.
+Contracts touched: API.md, EVENTS.md, OWNERS.md (additive).
