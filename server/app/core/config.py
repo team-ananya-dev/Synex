@@ -91,3 +91,12 @@ def web_origins() -> list[str]:
     """Browser origins allowed to call the API. The Next.js app is on port 3000; SYNEX_WEB_ORIGINS adds more (comma separated)."""
     extra = [o.strip() for o in os.environ.get("SYNEX_WEB_ORIGINS", "").split(",") if o.strip()]
     return ["http://localhost:3000", "http://127.0.0.1:3000", *extra]
+
+
+def operator_key() -> str:
+    """When set (hosted deployments), operator routes need this key. Empty means open (local development)."""
+    return os.environ.get("SYNEX_OPERATOR_KEY", "")
+
+
+def mailpit_api() -> str:
+    return os.environ.get("SYNEX_MAILPIT_API", "http://localhost:8025").rstrip("/")

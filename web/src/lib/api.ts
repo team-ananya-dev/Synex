@@ -238,10 +238,29 @@ export type TotalCosts = {
 
 export type SynexEvent = { id: number; type: string; at: string; [field: string]: unknown };
 
+// Operator key for a hosted deployment (operator routes return 401 without it). Kept in this browser only.
+const KEY_STORE = "synex_operator_key";
+export const operatorKey = (): string => {
+  try {
+    return typeof window === "undefined" ? "" : window.localStorage.getItem(KEY_STORE) ?? "";
+  } catch {
+    return "";
+  }
+};
+export const setOperatorKey = (key: string) => {
+  try {
+    if (key) window.localStorage.setItem(KEY_STORE, key);
+    else window.localStorage.removeItem(KEY_STORE);
+  } catch {
+    /* storage blocked: the key is simply not remembered */
+  }
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const key = operatorKey();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...(key ? { "X-Operator-Key": key } : {}), ...init?.headers },
     cache: "no-store",
   });
   if (!res.ok) {
@@ -298,6 +317,9 @@ export const api = {
   verifyChain: () => request<ChainCheck>("/audit/verify"),
   caseCosts: (id: string) => request<CaseCosts>(`/cases/${id}/costs`),
   totalCosts: () => request<TotalCosts>("/costs"),
+  // mailbox (operator): the invitations as delivered to the local Mailpit inbox
+  mailbox: () => request<MailItem[]>("/mailbox"),
+  mailboxMessage: (id: string) => request<MailMessage>(`/mailbox/${id}`),
   // stage 8 result
   result: (id: string) => request<CaseResult>(`/customer/cases/${id}/result`),
   writeSummary: (id: string) => request<CaseResult>(`/customer/cases/${id}/result/summary`, { method: "POST" }),
@@ -332,7 +354,11 @@ export type CaseResult = {
   subquestions: ResultSubQuestion[]; summary_status: "not written" | "written" | "stale";
 };
 
+export type MailItem = { id: string; to: string[]; subject: string; created: string; snippet: string };
+export type MailMessage = { id: string; to: string[]; subject: string; created: string; text: string; headers: Record<string, string[]> };
+
 export type Audience = "customer" | "operator";
 
 export const eventsUrl = (caseId: string, audience: Audience, after = 0) =>
-  `${API_BASE}${audience === "customer" ? "/customer" : ""}/cases/${caseId}/events?after=${after}`;
+  `${API_BASE}${audience === "customer" ? "/customer" : ""}/cases/${caseId}/events?after=${after}` +
+  (audience === "operator" && operatorKey() ? `&key=${encodeURIComponent(operatorKey())}` : "");
