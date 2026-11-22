@@ -249,3 +249,88 @@ def test_enrichment_failure_keeps_the_first_pass_ranking(api, monkeypatch):
     assert view["state"] == "AWAITING_APPROVAL"
     assert view["stages"]["s5b_enrich_rerank"]["1"]["enrich_skipped"] is True
     assert any(e["type"] == "enrich.skipped" for e in db_events(cid))
+
+
+def test_limits_stop_the_case_cleanly_as_limit_reached(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_CASE_CREDIT_CAP", "0.5")          # the first search costs more than this
+    cid = start(client)
+    assert client.get(f"/cases/{cid}").json()["state"] == "LIMIT_REACHED"
+    states = [e for e in db_events(cid) if e["type"] == "case.state"]
+    assert "credits" in states[-1]["reason"]
+
+
+def test_time_limit_stops_before_the_next_stage(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_RUN_TIME_LIMIT_SECONDS", "-1")
+    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    v = client.get(f"/cases/{cid}").json()
+    assert v["state"] == "LIMIT_REACHED" and "s1_question_screen" not in v["stages"]
+
+
+def test_case_model_spend_limit(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_CASE_USD_CAP", "0.0000001")       # the first model call already passes it
+    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    v = client.get(f"/cases/{cid}").json()
+    assert v["state"] == "LIMIT_REACHED" and "s2_decomposer" not in v["stages"]
+
+
+def test_cost_is_shown_in_rupees(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SYNEX_USD_INR", "85")
+    cid = start(client)
+    c = client.get(f"/customer/cases/{cid}").json()["cost"]
+    assert c["model_inr"] == round(c["model_usd"] * 85, 2) and c["total_inr"] >= c["model_inr"]
+
+
+def test_ambiguous_company_is_cannot_verify_and_lists_the_candidates(api, monkeypatch):
+    client, fake = api
+    real = fake["v"]._create
+
+    def unsure(**kw):
+        resp = real(**kw)
+        if "company_id" in kw["tools"][0]["input_schema"]["properties"]:
+            resp.content[0].input["confident"] = False
+            resp.content[0].input["reason"] = "two companies with this name fit"
+        return resp
+
+    fake["v"].messages.create = unsure
+    SEEN.clear()
+    cid = start(client)
+    company = client.get(f"/cases/{cid}").json()["stages"]["s3_sourcer"]["1"]["companies"][0]
+    assert company["resolved"] is False and company["cannot_verify"] is True
+    assert {c["name"] for c in company["candidates"]} == {"Acme", "Acme Other"}
+    assert not any(path == "/person/search" for path, _ in SEEN)       # nothing sourced on a guess
+    customer = client.get(f"/customer/cases/{cid}").json()
+    assert "Quentin" not in str(customer)
+
+
+def test_cannot_verify_people_stay_off_the_panel(api, monkeypatch):
+    client, _ = api
+    real = crustdata
+
+    def no_exit_date(request):
+        resp = real(request)
+        if request.url.path == "/person/search":
+            data = json.loads(resp.content)
+            for p in data["profiles"]:
+                for r in p["experience"]["employment_details"]["past"]:
+                    r["start_date"] = None
+            return httpx.Response(200, json=data, headers={"X-Credits-Used": "1.0"})
+        return resp
+
+    monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(no_exit_date))
+    cid = start(client)
+    v = client.get(f"/cases/{cid}").json()
+    verdicts = {s["person_id"]: s["verdict"] for s in v["stages"]["s4_people_screen"]["1"]}
+    assert verdicts[1] == "cannot_verify" and v["stages"]["s5_ranker"]["1"]["ranked"] == []
+    sc = client.get(f"/customer/cases/{cid}").json()["screening"]["1"]
+    assert sc["cannot_verify"] == 1 and any("cannot verify" in r for e in sc["excluded"] for r in e["reasons"])
+
+
+def test_each_company_is_identified_once_per_case(api):
+    client, _ = api
+    SEEN.clear()
+    start(client)                      # two sub-questions, both naming Acme
+    assert sum(1 for path, _ in SEEN if path == "/company/identify") == 1

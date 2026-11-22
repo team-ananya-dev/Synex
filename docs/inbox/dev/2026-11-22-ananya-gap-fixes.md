@@ -19,5 +19,5 @@ Panel cards and invitations (`views.py`) still show exact titles before anyone a
 
 ## Added later (demo-mode dry run)
 - `server/app/stages/s6_outreach_writer.py`: `spread_by_company` picks the panel round-robin by company (each company's best first). Before, `panels[idx][:n]` could be all one company (Ananya's skincare case: every expert from the named brand).
-- `server/app/crustdata/client.py`: 429 handling now retries up to 6 times (`RATE_LIMIT_WAITS`, honours Retry-After). A demo-mode case failed in stage 3 with `Rate limit exceeded for this endpoint` after about 14 calls in under a minute. If Crustdata still rate-limits during the finals, consider also pacing the per-company searches.
-- Tests: three more in `server/tests/test_gaps.py`.
+- `server/app/crustdata/client.py`: I had also made 429 retry up to 6 times, but your rate-limit commit (e752f7c) landed at the same time and does the same with pacing. At the merge I kept **yours** and dropped mine (and my two tests). A demo-mode case had failed in stage 3 with `Rate limit exceeded for this endpoint` after about 14 calls in under a minute, before your fix.
+- Tests: one more in `server/tests/test_gaps.py` (panel spread).

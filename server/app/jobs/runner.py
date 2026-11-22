@@ -7,6 +7,8 @@ Every stage emits stage.started and stage.done (with its result) on the audit ch
 routes replay those events to the browser.
 """
 import json
+import threading
+import time
 import uuid
 from datetime import date, datetime, timezone
 
@@ -47,6 +49,13 @@ class StageFailed(RuntimeError):
     pass
 
 
+class LimitReached(RuntimeError):
+    pass
+
+
+_phase = threading.local()   # when the current background phase started, for the per-run time limit
+
+
 def run_stage(conn, case_id: str, stage: str, fn):
     """Run one stage, or reuse its stored result if it already finished (after a crash or a retry), so no
     finished stage spends credits or sends anything twice."""
@@ -55,6 +64,10 @@ def run_stage(conn, case_id: str, stage: str, fn):
     if done:
         append_event(conn, case_id, "stage.reused", {"stage": stage})
         return json.loads(done["result"])
+    started = getattr(_phase, "started", None)
+    if started is not None and time.monotonic() - started > config.run_time_limit_seconds():
+        raise StageFailed(f"{stage}: time limit") from LimitReached(
+            f"the run passed its {config.run_time_limit_seconds():.0f} s time limit before {stage}")
     append_event(conn, case_id, "stage.started", {"stage": stage})
     try:
         result = fn()
@@ -69,14 +82,44 @@ def run_stage(conn, case_id: str, stage: str, fn):
 
 
 def _guarded(case_id: str, phase) -> None:
+    from ..core.llm import BudgetExceeded
+    from ..crustdata.client import CreditCapExceeded
     conn = db.connect()
+    _phase.started = time.monotonic()
     try:
         phase(conn, case_id)
-    except StageFailed:
-        set_state(conn, case_id, "FAILED")
+    except StageFailed as e:
+        cause = e.__cause__
+        if isinstance(cause, (LimitReached, CreditCapExceeded, BudgetExceeded)):
+            set_state(conn, case_id, "LIMIT_REACHED", reason=str(cause))   # a clean stop, not a crash
+        else:
+            set_state(conn, case_id, "FAILED")
     except Exception as e:  # nothing may leave a case stuck in a running state
         append_event(conn, case_id, "stage.failed", {"stage": "runner", "error": f"{type(e).__name__}: {e}"})
         set_state(conn, case_id, "FAILED")
+    finally:
+        conn.close()
+
+
+def resume_on_startup() -> None:
+    """After a restart: finish approved-but-unsent invitations, then continue every case that was mid-run, from its
+    last finished stage. A case stuck in SOURCING without a plan approval predates that step and cannot resume."""
+    import threading
+    from ..actions import queue
+    conn = db.connect()
+    try:
+        for cid in queue.resume_sends(conn):
+            if conn.execute("SELECT state FROM cases WHERE id=?", (cid,)).fetchone()["state"] == "AWAITING_APPROVAL":
+                set_state(conn, cid, "COLLECTING")
+        pending = list(conn.execute("SELECT id, state, params FROM cases WHERE state IN ('DRAFT', 'SOURCING')"))
+        for c in pending:
+            approved = "panel_size" in json.loads(c["params"])
+            if c["state"] == "SOURCING" and not approved:
+                append_event(conn, c["id"], "stage.failed", {"stage": "runner", "error": "pre-stage-6 dev run: no plan approval, cannot resume"})
+                set_state(conn, c["id"], "FAILED", reason="pre-stage-6 dev run")
+                continue
+            append_event(conn, c["id"], "case.resumed", {"from_state": c["state"]})
+            threading.Thread(target=continue_case if c["state"] == "SOURCING" else run_case, args=(c["id"],), daemon=True).start()
     finally:
         conn.close()
 
@@ -141,16 +184,38 @@ def _source_and_draft(conn, case_id: str) -> None:
                 competitor_memo[company_id] = (None, None)
         return competitor_memo[company_id]
 
+    resolve_memo: dict[str, object] = {}
+
+    def resolve(name: str, context: str):
+        """Resolve each company name once per case: the same names recur in every sub-question, and the identify
+        endpoint allows only a few calls a minute."""
+        key = name.strip().lower()
+        if key not in resolve_memo:
+            try:
+                resolve_memo[key] = s3_sourcer.resolve_company(conn, client, name, context, case_id)
+            except LookupError as e:
+                resolve_memo[key] = e
+        found = resolve_memo[key]
+        if isinstance(found, LookupError):
+            raise found
+        return found
+
     def source_all():
         out = {}
         for sq in work:
             companies, people, seen = [], [], set()
             for target in sq["target_companies"][: config.max_companies_per_subquestion()]:
                 try:
-                    chosen, cands, pick = s3_sourcer.resolve_company(
-                        conn, client, target["name"], f"{question} | {sq['text']}", case_id)
+                    chosen, cands, pick = resolve(target["name"], question)
                 except LookupError:
-                    companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False})
+                    companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False,
+                                      "cannot_verify": True, "reason": "no company with this name in Crustdata"})
+                    continue
+                if pick.get("confident") is False:   # a lookalike or ambiguous name: never guess which company is meant
+                    companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False, "cannot_verify": True,
+                                      "reason": f"ambiguous company name: {pick.get('reason', '')}".strip(),
+                                      "candidates": [{"company_id": c["company_id"], "name": c["name"], "domain": c["domain"],
+                                                      "size": c["size"]} for c in cands[:4]]})
                     continue
                 found, meta, call_id = s3_sourcer.source(
                     conn, client, chosen["company_id"], today, **window, limit=25, query=f"{sq['expertise']}: {sq['text']}")
@@ -184,7 +249,7 @@ def _source_and_draft(conn, case_id: str) -> None:
             idx = str(sq["index"])
             verdict = {s["person_id"]: s["verdict"] for s in screens[idx]}
             kept = [{**p, "verdict": verdict[p["person_id"]]} for p in sourced[idx]["candidates"]
-                    if verdict[p["person_id"]] != "fail"]
+                    if verdict[p["person_id"]] in ("pass", "review")]
             result, call_id = s5_ranker.rank(conn, kept, sq["text"], sq["expertise"], case_id)
             out[idx] = {**result, "llm_call_id": call_id}
         return out

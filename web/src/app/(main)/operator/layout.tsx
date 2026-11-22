@@ -13,7 +13,10 @@ export default function OperatorLayout({ children }: { children: React.ReactNode
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-800 px-3 py-2 text-xs text-zinc-400">
-        <span>Operator area: real names and full answers. Team members only.</span>
+        <span>
+          Operator area: real names and full answers. Team members only.
+          {!saved && " On the hosted site, enter the operator key (SYNEX_OPERATOR_KEY in Render) and click Save to load this page."}
+        </span>
         {saved ? (
           <span className="ml-auto flex items-center gap-2">
             operator key set

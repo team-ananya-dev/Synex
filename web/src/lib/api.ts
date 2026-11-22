@@ -5,9 +5,9 @@ export const MAILPIT_URL = process.env.NEXT_PUBLIC_MAILPIT_URL ?? "http://localh
 
 export type CaseState =
   | "DRAFT" | "PLANNED" | "SOURCING" | "AWAITING_APPROVAL" | "COLLECTING"
-  | "SYNTHESIZING" | "DELIVERED" | "REFUSED" | "FAILED";
+  | "SYNTHESIZING" | "DELIVERED" | "REFUSED" | "FAILED" | "LIMIT_REACHED";
 
-export const TERMINAL_STATES: CaseState[] = ["REFUSED", "FAILED"];
+export const TERMINAL_STATES: CaseState[] = ["REFUSED", "FAILED", "LIMIT_REACHED"];
 
 export type QuestionScreen = { verdict: "allow" | "refuse" | "rewrite"; reason: string; effective_question: string };
 
@@ -80,7 +80,10 @@ export type CaseView = {
     s5b_enrich_rerank?: RankStage;
     [stage: string]: unknown;
   };
-  cost: { crustdata_credits: number; model_usd: number; credit_cap: number };
+  cost: {
+    crustdata_credits: number; model_usd: number; credit_cap: number; model_usd_cap: number; time_limit_seconds: number;
+    model_inr: number; crustdata_inr: number; total_inr: number; inr_rates: { usd_inr: number; inr_per_credit: number };
+  };
 };
 
 // ---- customer view (GET /customer/cases/{id}); never contains a name, headline, link, city or email ----
@@ -133,12 +136,15 @@ export type CustomerCase = {
   panel: Record<string, ExpertCard[]>;
   outreach: Partial<Record<OutreachStatus, number>>;
   invites: Invite[];
-  cost: { crustdata_credits: number; model_usd: number; credit_cap: number };
+  cost: {
+    crustdata_credits: number; model_usd: number; credit_cap: number; model_usd_cap: number; time_limit_seconds: number;
+    model_inr: number; crustdata_inr: number; total_inr: number; inr_rates: { usd_inr: number; inr_per_credit: number };
+  };
 };
 
 export type CaseSummary = { id: string; question: string; state: CaseState; created_at: string };
 
-export type OutreachStatus = "DRAFTED" | "SENT" | "REJECTED" | "BLOCKED" | "FAILED";
+export type OutreachStatus = "DRAFTED" | "APPROVED" | "SENT" | "REJECTED" | "BLOCKED" | "FAILED";
 
 export type Approval = {
   id: number;

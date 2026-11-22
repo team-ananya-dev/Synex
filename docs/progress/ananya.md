@@ -253,3 +253,11 @@ Next: demo video.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 16:48 IST ananya merge-dev-ratelimit
+Done: merged Dev's 9 commits (exactly-once sends, rate limits and pacing, run limits, CANNOT_VERIFY screening, README and web changes). Conflict only in `server/app/crustdata/client.py`: both of us had added 429 retries; kept Dev's version (adds pacing), removed my constant and my two tests. 154 server tests pass.
+In progress: nothing.
+Next: demo video.
+Decisions: Dev's rate-limit handling wins; the note to Dev says so.
+Blocked on: nothing.
+Contracts touched: none.

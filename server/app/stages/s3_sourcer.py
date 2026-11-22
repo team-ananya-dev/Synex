@@ -55,6 +55,7 @@ def normalise(profile: dict, company_id: int, call_id: str, today: date) -> dict
     emp = profile["experience"]["employment_details"]
     roles = [r for r in emp.get("past", []) if r.get("crustdata_company_id") == company_id and r.get("end_date")]
     role = max(roles, key=lambda r: r["end_date"]) if roles else {}
+    role_path = f"experience.employment_details.past[{emp['past'].index(role)}]" if role else None
     current = emp.get("current", [])
     return {
         "person_id": profile["crustdata_person_id"],
@@ -71,7 +72,9 @@ def normalise(profile: dict, company_id: int, call_id: str, today: date) -> dict
         "still_at_company": any(c.get("crustdata_company_id") == company_id for c in current),
         "current_employers": [c.get("name") for c in current if c.get("name")],
         "current_roles": [{"company_id": c.get("crustdata_company_id"), "name": c.get("name"), "website": c.get("company_website"),
-                           "title": c.get("title"), "seniority": c.get("seniority_level")} for c in current],
+                           "title": c.get("title"), "seniority": c.get("seniority_level"),
+                           "path": f"experience.employment_details.current[{i}]"} for i, c in enumerate(current)],
+        "role_path": role_path,   # where the target-company role sits in the Crustdata person record
         "crustdata_fit": profile.get("fit"),
         "record_updated_at": (profile.get("metadata") or {}).get("updated_at"),
         "source_call_id": call_id,

@@ -8,9 +8,14 @@ import { StateBadge } from "@/components/StateBadge";
 
 // Example questions only fill the text box; nothing about them is special-cased anywhere.
 const EXAMPLES = [
+  "How does Zepto run dark store operations and rider logistics compared with Blinkit?",
+  "How do Delhivery and Ecom Express handle return-to-origin parcels for e-commerce sellers?",
+  "What are warehouse managers at Indian 3PL firms like Mahindra Logistics seeing in labour costs and automation?",
+  "How has Shiprocket's courier aggregation changed for small online sellers over the last two years?",
   "How are unit economics trending in quick commerce in India?",
   "How do mid-size SaaS companies price enterprise plans, and how has that changed?",
   "What is driving customer churn at consumer fintech apps?",
+  "What revenue will Zepto report in its next unannounced funding round?",
 ];
 
 // The landing page's DIVE button sends the typed question as ?q=; reading it needs a Suspense boundary.

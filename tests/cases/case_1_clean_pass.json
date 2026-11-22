@@ -1,0 +1,74 @@
+{
+  "request": {
+    "type": "screen_former_employee",
+    "target_company": {
+      "crustdata_company_id": 622940,
+      "name": "Zepto"
+    },
+    "rules": {
+      "min_left_months": 6,
+      "max_left_months": 24,
+      "min_years": 1
+    },
+    "as_of": "2026-11-22"
+  },
+  "sources": {
+    "person_record": {
+      "endpoint": "/person/search",
+      "call_id": "00f003be57d345d6a830bcbe87d0198c",
+      "retrieved_at": "2026-11-22T09:25:51.521382+00:00",
+      "record_updated_at": "2026-11-16T00:13:57+00:00"
+    },
+    "competitor_list": {
+      "endpoint": "/company/enrich",
+      "call_id": "be9242ffd3a74a429af1e3bb1406ef51",
+      "field": "competitors.organic_seo, competitors.paid_seo",
+      "domains": [
+        "bigbasket.com",
+        "blinkit.com",
+        "dmart.in",
+        "flipkart.com",
+        "instamart.in"
+      ]
+    }
+  },
+  "record_excerpt": {
+    "crustdata_person_id": 561913718,
+    "metadata": {
+      "updated_at": "2026-11-16T00:13:57+00:00"
+    },
+    "experience": {
+      "employment_details": {
+        "past": [
+          {
+            "crustdata_company_id": 622940,
+            "name": "Zepto",
+            "title": "Deputy Hub Manager",
+            "start_date": "2024-08-01T00:00:00",
+            "end_date": "2025-11-01T00:00:00",
+            "company_website": "https://www.zepto.com/",
+            "seniority_level": "Entry Level Manager"
+          }
+        ],
+        "current": [
+          {
+            "crustdata_company_id": 6034577,
+            "name": "Amazon",
+            "title": "Store Manager",
+            "start_date": "2026-05-01T00:00:00",
+            "end_date": null,
+            "company_website": "https://www.aboutamazon.com/",
+            "seniority_level": "Entry Level Manager"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "verdict": "pass",
+    "failed_rules": [],
+    "cannot_verify_rules": []
+  },
+  "why": "Left Zepto in Nov 2025 after 15 months, no current role at Zepto or a competitor: passes every rule.",
+  "note": "Real Crustdata responses from runs on 2026-11-22, reduced to the fields the rules read. Names, headlines, locations and profile links are removed."
+}

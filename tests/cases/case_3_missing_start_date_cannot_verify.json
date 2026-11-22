@@ -1,0 +1,88 @@
+{
+  "request": {
+    "type": "screen_former_employee",
+    "target_company": {
+      "crustdata_company_id": 5705,
+      "name": "BYJU'S"
+    },
+    "rules": {
+      "min_left_months": 6,
+      "max_left_months": 24,
+      "min_years": 1
+    },
+    "as_of": "2026-11-22"
+  },
+  "sources": {
+    "person_record": {
+      "endpoint": "/person/search",
+      "call_id": "10ffe296b1ac4a559a2b5af88d237775",
+      "retrieved_at": "2026-11-22T09:26:32.637850+00:00",
+      "record_updated_at": "2026-11-08T06:11:24+00:00"
+    },
+    "competitor_list": {
+      "endpoint": "/company/enrich",
+      "call_id": null,
+      "domains": null,
+      "note": "not fetched in that run; the case does not depend on it (cannot verify comes first)"
+    }
+  },
+  "record_excerpt": {
+    "crustdata_person_id": 75688897,
+    "metadata": {
+      "updated_at": "2026-11-08T06:11:24+00:00"
+    },
+    "experience": {
+      "employment_details": {
+        "past": [
+          {
+            "crustdata_company_id": 52888,
+            "name": "Happiest Minds Technologies",
+            "title": "Senior Engineer",
+            "start_date": "2023-10-01T00:00:00",
+            "end_date": "2025-06-01T00:00:00",
+            "company_website": "https://www.happiestminds.com/",
+            "seniority_level": "Senior"
+          },
+          {
+            "crustdata_company_id": 5721,
+            "name": "Dunzo",
+            "title": "System Administrator",
+            "start_date": "2021-03-01T00:00:00",
+            "end_date": "2025-06-01T00:00:00",
+            "company_website": "http://dunzo.com",
+            "seniority_level": "Entry Level"
+          },
+          {
+            "crustdata_company_id": 5705,
+            "name": "BYJU'S",
+            "title": "Desktop Support Specialist",
+            "start_date": null,
+            "end_date": "2025-06-01T00:00:00",
+            "company_website": "https://www.byjus.com",
+            "seniority_level": "Entry Level"
+          }
+        ],
+        "current": [
+          {
+            "crustdata_company_id": 686321,
+            "name": "L&T Technology Services",
+            "title": "Specialist - Cloud & Infra Management",
+            "start_date": "2025-06-01T00:00:00",
+            "end_date": null,
+            "company_website": "http://www.Ltts.com",
+            "seniority_level": "Entry Level"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "verdict": "cannot_verify",
+    "failed_rules": [],
+    "cannot_verify_rules": [
+      "rule_min_tenure"
+    ]
+  },
+  "why": "The only role at the target company has an exit date but no start date, so the minimum tenure cannot be checked. The correct result is cannot verify, naming the missing field experience.employment_details.past[2].start_date. The person is not contacted.",
+  "note": "Real Crustdata responses from runs on 2026-11-22, reduced to the fields the rules read. Names, headlines, locations and profile links are removed."
+}

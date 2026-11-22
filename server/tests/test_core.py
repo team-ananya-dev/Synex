@@ -112,3 +112,36 @@ def test_network_errors_are_retried_then_logged(conn, monkeypatch):
     with pytest.raises(CrustdataError):
         down.post("/person/search", {"x": 1}, "t")
     assert conn.execute("SELECT COUNT(*) c FROM crustdata_calls WHERE status=0").fetchone()["c"] == 1
+
+
+def test_secrets_pasted_with_whitespace_are_trimmed(monkeypatch):
+    monkeypatch.setenv("CRUSTDATA_API_KEY", "  abc123\n")
+    monkeypatch.setenv("SYNEX_OPERATOR_KEY", "k3y\n")
+    assert config.crustdata_key() == "abc123" and config.operator_key() == "k3y"
+
+
+def test_rate_limited_call_waits_and_retries(conn, monkeypatch):
+    slept = []
+    monkeypatch.setattr("app.crustdata.client.time.sleep", lambda s: slept.append(s))
+    calls = []
+
+    def limited(request):
+        calls.append(1)
+        if len(calls) < 3:
+            return httpx.Response(429, json={"error": "rate"}, headers={"Retry-After": "2"})
+        return ok(request)
+
+    data, _ = make_client(conn, limited).post("/company/identify", {"names": ["x"]}, "t")
+    assert len(calls) == 3 and slept == [2.0, 2.0] and "echo" in data
+
+
+def test_pacing_spaces_calls_to_the_account_rate(monkeypatch):
+    from app.crustdata import client as cl
+    t = {"now": 100.0}
+    slept = []
+    monkeypatch.setattr(cl.time, "monotonic", lambda: t["now"])
+    monkeypatch.setattr(cl.time, "sleep", lambda s: (slept.append(round(s, 1)), t.__setitem__("now", t["now"] + s)))
+    cl._last_call.clear()
+    cl._pace("/company/identify")
+    cl._pace("/company/identify")
+    assert slept == [12.6]          # 5 a minute, with a 5% margin

@@ -84,12 +84,16 @@ export function CaseView() {
         )}
         {screen?.verdict === "allow" && <p className="text-[13px] text-emerald-300">✓ Question screen: {screen.reason}</p>}
         {data.state === "REFUSED" && <Alert>Refused by the question screen: {data.refusal_reason}</Alert>}
+        {data.state === "LIMIT_REACHED" && (
+          <Alert>Stopped at a run limit: {String(events.findLast((e) => e.type === "case.state" && e.state === "LIMIT_REACHED")?.reason ?? "a limit was reached")}</Alert>
+        )}
         {failed && <Alert>Stage {String(failed.stage)} failed: {String(failed.error)}</Alert>}
       </section>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
         <Counter label="Crustdata credits" value={`${data.cost.crustdata_credits.toFixed(1)} / ${data.cost.credit_cap}`} />
-        <Counter label="Model spend" value={`$${data.cost.model_usd.toFixed(4)}`} />
+        <Counter label="Model spend" value={`$${data.cost.model_usd.toFixed(4)} · ₹${data.cost.model_inr.toFixed(2)}`} />
+        <Counter label="Measured cost of this job" value={`₹${data.cost.total_inr.toFixed(2)}`} />
         {data.quote && <Counter label="Quoted price · no payment taken" value={inr(data.quote.quoted_price_inr)} />}
       </section>
 

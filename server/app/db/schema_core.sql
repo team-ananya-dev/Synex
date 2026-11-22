@@ -116,3 +116,17 @@ CREATE TABLE IF NOT EXISTS outreach (
     created_at         TEXT NOT NULL,
     UNIQUE (case_id, person_id)
 );
+
+-- Exactly-once side effects. key = sha256(case_id | action_type | target_id). A row is written PENDING before
+-- the action and DONE after it; a DONE action is never repeated. A PENDING row found after a crash is checked
+-- against the mailbox (the key is in the email's Message-ID) before anything is sent again.
+CREATE TABLE IF NOT EXISTS actions (
+    key          TEXT PRIMARY KEY,
+    case_id      TEXT NOT NULL,
+    action_type  TEXT NOT NULL,
+    target_id    TEXT NOT NULL,
+    status       TEXT NOT NULL,          -- PENDING, DONE, UNVERIFIED
+    response     TEXT,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
