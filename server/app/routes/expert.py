@@ -76,6 +76,25 @@ def _answered(conn, outreach_id: int) -> set[int]:
         "SELECT subquestion_index FROM responses WHERE outreach_id=?", (outreach_id,))}
 
 
+def _case_state(conn, case_id: str) -> str:
+    return conn.execute("SELECT state FROM cases WHERE id=?", (case_id,)).fetchone()["state"]
+
+
+def _screening(conn, outreach_id: int) -> list[dict]:
+    """What the expert is told after submitting (site flow): each answer's result and why, and for a redaction
+    the words that were removed. These are the expert's own words, so showing them back reveals nothing new."""
+    out = []
+    for r in conn.execute("SELECT * FROM responses WHERE outreach_id=? ORDER BY subquestion_index", (outreach_id,)):
+        s = s7_response_screen.latest(conn, r["response_id"])
+        out.append({
+            "index": r["subquestion_index"], "kind": r["kind"],
+            "verdict": s["verdict"] if s else "pending",
+            "reason": s["reason"] if s else None,
+            "removed": json.loads(s["flagged_spans"]) if s and s["verdict"] == "redacted" else [],
+        })
+    return out
+
+
 @router.get("/expert/{token}")
 def get_expert_page(token: str):
     """What the expert page shows. Only a link whose email was approved and sent is open."""
@@ -84,12 +103,16 @@ def get_expert_page(token: str):
         ctx = _context_or_404(conn, token)
         if ctx["status"] != "SENT":
             return {"available": False, "reason": "This invitation is not active."}
+        submitted = bool(_answered(conn, ctx["outreach_id"]))
+        if not submitted and _case_state(conn, ctx["case_id"]) == "DELIVERED":
+            return {"available": False, "reason": "This research has closed and is no longer taking answers."}
         return {
             "available": True,
             "first_name": ctx["first_name"],
             "persona": _persona(conn, ctx["outreach_id"]),
             "subquestions": ctx["subquestions"],
-            "submitted": bool(_answered(conn, ctx["outreach_id"])),
+            "submitted": submitted,
+            "screening": _screening(conn, ctx["outreach_id"]) if submitted else [],
             "payout": {"per_accepted_answer": PAYOUT_PER_ACCEPTED_ANSWER, "currency": CURRENCY, "terms": "payout terms shown for illustration; no payment is made in this build"},
         }
     finally:
@@ -105,6 +128,8 @@ def submit_responses(token: str, body: Submission, tasks: BackgroundTasks):
             raise HTTPException(409, "this invitation is not active")
         if _answered(conn, ctx["outreach_id"]):
             raise HTTPException(409, "answers for this invitation were already submitted")
+        if _case_state(conn, ctx["case_id"]) == "DELIVERED":
+            raise HTTPException(409, "this research has closed and is no longer taking answers")
         missing = [a for a in ATTESTATIONS if not body.attestations.get(a)]
         if missing:
             raise HTTPException(422, f"confirm every statement before submitting: {', '.join(missing)}")

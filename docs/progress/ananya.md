@@ -212,3 +212,11 @@ Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as ex
 Decisions: Ananya asked for the fixes without waiting for Dev; Dev told in `docs/inbox/dev/2026-11-22-ananya-gap-fixes.md`.
 Blocked on: nothing.
 Contracts touched: API.md, ENUMS.md (this commit)
+
+## 2026-11-22 16:20 IST ananya gap-server
+Done: `server/app/stages/s1_question_screen.py` keeps named companies (Dev's file); `server/app/anonymity.py` (new) coarse role labels; `server/app/stages/s8_result.py` anonymised roles, not sourced, stricter agreement (Dev's file); `server/app/routes/responses.py` coarse roles and the close route; `server/app/routes/expert.py` expert screening outcome and closed-case refusal; tests `server/tests/test_gaps.py` (8) and one assertion in Dev's `test_result.py`. 111 tests pass. Checked live: stage 1 kept 'Blue Tokai Coffee Roasters' in its rewrite; the test case closed to DELIVERED; coarse roles and not sourced appear on the real routes.
+In progress: nothing.
+Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as experts; demo video.
+Decisions: Edited Dev's s1, s8 and test_result at Ananya's request; listed in his inbox note.
+Blocked on: nothing.
+Contracts touched: previous commit

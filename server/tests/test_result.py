@@ -85,7 +85,8 @@ def test_result_counts_only_accepted_answers_and_hides_identity(api, sent):
     client, cid, token, indices = sent
     assert client.get("/customer/cases/nope/result").status_code == 404
     before = client.get(f"/customer/cases/{cid}/result").json()
-    assert all(sq["status"] == "no accepted answer" and sq["confidence"] is None for sq in before["subquestions"])
+    assert all(sq["status"] in ("no accepted answer", "not sourced") and sq["confidence"] is None for sq in before["subquestions"])
+    assert any(sq["status"] == "not sourced" for sq in before["subquestions"])   # dev mode sources only the first 2
     assert client.post(f"/customer/cases/{cid}/result/summary").status_code == 409
 
     script(api, {"verdict": "accepted", "reason": "general experience", "flagged_spans": []},

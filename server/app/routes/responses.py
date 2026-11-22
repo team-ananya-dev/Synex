@@ -10,7 +10,9 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from ..actions.mail import TEAM_MEMBERS
+from ..anonymity import anonymise_roles
 from ..core import db
+from ..jobs import runner
 from ..jobs.views import expert_ref
 from ..stages import s7_response_screen as s7
 
@@ -45,12 +47,16 @@ def customer_responses(case_id: str):
             c[r["verdict"] or "pending"] += 1
             if r["verdict"] in ("accepted", "redacted"):
                 shown.append({
+                    "person_id": r["person_id"],  # used for the anonymity count, removed below
                     "response_id": r["response_id"], "ref": expert_ref(case_id, r["person_id"]),
                     "role": r["persona_title"], "company": r["persona_company"],
                     "subquestion_index": r["subquestion_index"], "verdict": r["verdict"],
                     "text": r["text"] if r["verdict"] == "accepted" else r["redacted_text"],
                     "confidence": r["confidence"], "mode": r["mode"], "created_at": r["created_at"],
                 })
+        anonymise_roles(shown)  # a title shared by fewer than 3 accepted experts becomes a coarse label
+        for a in shown:
+            del a["person_id"]
         return {"coverage": coverage, "responses": shown}
     finally:
         conn.close()
@@ -107,5 +113,25 @@ def review_held(response_id: str, body: Review):
             "redacted_text": None, "flagged_spans": [], "code_flags": json.loads(current["code_flags"]), "llm_call_id": None,
         }, approver)
         return {"response_id": response_id, "verdict": verdict, "decided_by": approver}
+    finally:
+        conn.close()
+
+
+@router.post("/customer/cases/{case_id}/close")
+def close_case(case_id: str):
+    """The customer's click that ends collection: the case becomes DELIVERED and its result is final.
+    Needs at least one accepted answer. Expert links stop taking answers once the case is delivered."""
+    conn = db.connect()
+    try:
+        case = conn.execute("SELECT state FROM cases WHERE id=?", (case_id,)).fetchone()
+        if case is None:
+            raise HTTPException(404, "no such case")
+        if case["state"] != "COLLECTING":
+            raise HTTPException(409, f"only a case that is collecting answers can be closed; this one is {case['state']}")
+        answered = {r["subquestion_index"] for r in _rows(conn, case_id) if r["verdict"] in ("accepted", "redacted")}
+        if not answered:
+            raise HTTPException(409, "no accepted answer yet")
+        runner.set_state(conn, case_id, "DELIVERED", answered_subquestions=sorted(answered), by="customer")
+        return {"id": case_id, "state": "DELIVERED", "answered_subquestions": sorted(answered)}
     finally:
         conn.close()
