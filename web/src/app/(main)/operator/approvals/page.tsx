@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, type Approval, type Approver, type OutreachStatus } from "@/lib/api";
+import { Pill } from "@/components/StateBadge";
 
 // Operator-only: shows real names from Crustdata. Never link this from a customer screen.
-const STATUS_STYLE: Record<OutreachStatus, string> = {
-  DRAFTED: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  SENT: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  REJECTED: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  BLOCKED: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  FAILED: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+const STATUS_TONE: Record<OutreachStatus, "amber" | "emerald" | "zinc" | "red"> = {
+  DRAFTED: "amber",
+  SENT: "emerald",
+  REJECTED: "zinc",
+  BLOCKED: "red",
+  FAILED: "red",
 };
 
 export default function ApprovalsPage() {
@@ -45,32 +46,34 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Approval queue</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Nothing is sent without a click here. Mail goes only to the teammate allowlist; any other address is
-          blocked and logged.
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-[26px] font-semibold tracking-[-.02em]">Approval queue</h1>
+        <p className="text-sm leading-normal text-zinc-400">
+          Nothing is sent without a click here. Mail goes only to the teammate allowlist; any other address is blocked
+          and logged.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 text-sm">
+      <div className="flex flex-wrap items-center gap-4 text-[13px]">
         <label className="flex items-center gap-2">
           Approving as
           <select
             value={approver}
             onChange={(e) => setApprover(e.target.value as Approver)}
-            className="rounded border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700"
+            className="rounded border border-zinc-700 bg-background px-2 py-1"
           >
             <option value="ananya">ananya</option>
             <option value="dev">dev</option>
           </select>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={onlyDrafted} onChange={(e) => setOnlyDrafted(e.target.checked)} />
+        <button onClick={() => setOnlyDrafted((v) => !v)} className="flex items-center gap-1.5 text-zinc-400">
+          <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border text-[10px] text-background ${onlyDrafted ? "border-foreground bg-foreground" : "border-zinc-600"}`}>
+            {onlyDrafted && "✓"}
+          </span>
           Waiting only
-        </label>
-        {error && <span className="text-red-600">{error}</span>}
+        </button>
+        {error && <span className="text-red-300">{error}</span>}
       </div>
 
       {items === null ? (
@@ -78,15 +81,14 @@ export default function ApprovalsPage() {
       ) : items.length === 0 ? (
         <p className="text-sm text-zinc-500">Nothing waiting.</p>
       ) : (
-        <ul className="space-y-4">
+        <div className="flex flex-col gap-3.5">
           {items.map((a) => (
-            <li key={a.id} className="space-y-3 rounded-md border border-zinc-200 p-4 text-sm dark:border-zinc-800">
+            <div key={a.id} className="flex flex-col gap-3 rounded-lg border border-zinc-800 p-4 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[a.status]}`}>{a.status}</span>
+                <Pill tone={STATUS_TONE[a.status]}>{a.status}</Pill>
                 <span className="font-medium">{a.name}</span>
                 <span className="text-zinc-500">
-                  {a.persona_title} · {a.persona_company}
-                  {a.tenure_months != null && ` · ${a.tenure_months} months`}
+                  {[a.persona_title, a.persona_company, a.tenure_months != null && `${a.tenure_months} months`].filter(Boolean).join(" · ")}
                 </span>
                 <span className="ml-auto text-xs text-zinc-500">
                   case {a.case_id} · sub-questions {a.subquestion_indices.join(", ")}
@@ -94,18 +96,20 @@ export default function ApprovalsPage() {
               </div>
 
               {a.flags.length > 0 && (
-                <ul className="rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-                  {a.flags.map((f, i) => <li key={i}>⚑ {f.rule}: {f.reason}</li>)}
-                </ul>
+                <div className="flex flex-col gap-0.5 rounded-md border border-[#4a3510] bg-[#120c04] px-2.5 py-2 text-xs text-amber-300">
+                  {a.flags.map((f, i) => <span key={i}>⚑ {f.rule}: {f.reason}</span>)}
+                </div>
               )}
 
-              <div className="rounded bg-zinc-50 p-3 dark:bg-zinc-900">
-                <div className="text-xs text-zinc-500">To: {a.to_address} (teammate playing this expert)</div>
-                <div className="font-medium">{a.subject}</div>
-                <pre className="mt-2 whitespace-pre-wrap font-sans text-zinc-700 dark:text-zinc-300">{a.body}</pre>
+              <div className="flex flex-col gap-1.5 rounded-md bg-hover p-3.5">
+                <div className="text-xs text-zinc-500">
+                  To: <span className="font-mono text-zinc-300">{a.to_address}</span> (teammate playing this expert)
+                </div>
+                <span className="font-medium">{a.subject}</span>
+                <pre className="mt-1 whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-zinc-300">{a.body}</pre>
               </div>
 
-              {a.block_reason && <p className="text-red-600">Blocked: {a.block_reason}</p>}
+              {a.block_reason && <p className="text-[13px] text-red-300">Blocked: {a.block_reason}</p>}
               {a.decided_by && (
                 <p className="text-xs text-zinc-500">
                   {a.status.toLowerCase()} by {a.decided_by} at {a.decided_at && new Date(a.decided_at).toLocaleString()}
@@ -117,22 +121,22 @@ export default function ApprovalsPage() {
                   <button
                     onClick={() => decide(a.id, "approve")}
                     disabled={busy === a.id}
-                    className="rounded-md bg-emerald-600 px-3 py-1.5 font-medium text-white disabled:opacity-40"
+                    className="rounded-md bg-emerald-600 px-3.5 py-[7px] font-medium text-white disabled:opacity-40"
                   >
                     Approve and send
                   </button>
                   <button
                     onClick={() => decide(a.id, "reject")}
                     disabled={busy === a.id}
-                    className="rounded-md border border-zinc-300 px-3 py-1.5 dark:border-zinc-700"
+                    className="rounded-md border border-zinc-700 px-3.5 py-[7px] disabled:opacity-40"
                   >
                     Reject
                   </button>
                 </div>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

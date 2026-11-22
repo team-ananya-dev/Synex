@@ -1,21 +1,40 @@
 import type { CaseState } from "@/lib/api";
 
-const COLORS: Record<CaseState, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  PLANNED: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
-  SOURCING: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
-  AWAITING_APPROVAL: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  COLLECTING: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300",
-  SYNTHESIZING: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300",
-  DELIVERED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  REFUSED: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  FAILED: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+export const TONE = {
+  zinc: "bg-zinc-800 text-zinc-300",
+  sky: "bg-sky-950 text-sky-300",
+  amber: "bg-amber-950 text-amber-300",
+  violet: "bg-violet-950 text-violet-300",
+  emerald: "bg-emerald-950 text-emerald-300",
+  red: "bg-red-950 text-red-300",
+} as const;
+
+const STATE_TONE: Record<CaseState, keyof typeof TONE> = {
+  DRAFT: "zinc",
+  PLANNED: "sky",
+  SOURCING: "sky",
+  AWAITING_APPROVAL: "amber",
+  COLLECTING: "violet",
+  SYNTHESIZING: "violet",
+  DELIVERED: "emerald",
+  REFUSED: "red",
+  FAILED: "red",
 };
 
-export function StateBadge({ state }: { state: CaseState }) {
+export function Pill({ tone, children, className = "" }: { tone: keyof typeof TONE; children: React.ReactNode; className?: string }) {
+  return <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${TONE[tone]} ${className}`}>{children}</span>;
+}
+
+export function StateBadge({ state, wide = false }: { state: CaseState; wide?: boolean }) {
   return (
-    <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${COLORS[state] ?? COLORS.DRAFT}`}>
+    <Pill tone={STATE_TONE[state] ?? "zinc"} className={wide ? "min-w-24 text-center" : ""}>
       {state.replace("_", " ").toLowerCase()}
-    </span>
+    </Pill>
+  );
+}
+
+export function SimulatedTag({ children = "simulated" }: { children?: React.ReactNode }) {
+  return (
+    <span className="rounded border border-[#4a3510] px-1.5 py-px font-mono text-[11px] text-amber-300">{children}</span>
   );
 }
