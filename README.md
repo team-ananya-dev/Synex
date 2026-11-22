@@ -1,5 +1,7 @@
 # Synex
 
+> **An expert network, rebuilt as software.** Ask a business question; get answers from compliance-cleared former insiders, every claim traced to the record it came from, in hours instead of weeks of scheduling calls.
+
 An expert network, rebuilt as software. A customer asks a business question. Synex finds former employees in live people data, screens every person and every answer with fixed compliance rules, invites a panel by email (to teammates only, in this competition), collects their answers, and returns them with a count of independent sources, a confidence level and a short summary where every sentence cites an answer.
 
 Built at ContextCon 05 (theme "Services, Replaced") by Dev and Ananya.
@@ -21,7 +23,8 @@ Built at ContextCon 05 (theme "Services, Replaced") by Dev and Ananya.
 | **Replaces** | an expert-network call (GLG, AlphaSights, Guidepoint) |
 | **Input** | one business question in plain text |
 | **Output** | a compliance-cleared anonymous panel, screened answers, sources and confidence per sub-question, a cited summary |
-| **Live data** | Crustdata people and company data, Claude Haiku 4.5 |
+| **Live data** | Crustdata people and company APIs |
+| **Model** | Claude Haiku 4.5, with every reply checked in code |
 | **Human clicks** | approve the plan, approve the anonymised invitations, accept or reject a held answer |
 | **Never** | contacts a real person, takes a payment, shows a customer a name or a link, guesses when data is missing |
 
@@ -53,7 +56,7 @@ Eight stages. Details and diagrams are in [`docs/ARCHITECTURE.md`](docs/ARCHITEC
 | 1 | Question screen | Allows, rewrites or refuses the question and says why. Naming a company is not a reason to rewrite; code puts back any company a rewrite dropped. | small model, code check |
 | 2 | Plan | Splits the question into 3 to 5 sub-questions with the expertise and target companies. A company counts as "named" only if its name is in the question, checked in code. | small model, code check |
 | 3 | Sourcing | Finds the company record by id, then searches Crustdata for people who held a role there that ended inside the window. | Crustdata; model only picks among returned ids |
-| 4 | People screen | Fixed rules, each returning pass or fail with a reason. | code |
+| 4 | People screen | Fixed rules, each returning pass, fail or cannot verify, with the Crustdata field, value and record date it used. | code |
 | 5 | Ranking | Scores each remaining person against the sub-question and must quote evidence from the profile. Code drops any quote it cannot find. | small model, code check |
 | 6 | Invitations | Drafts one anonymised invitation per expert, with a fixed small number of questions each (default 3, `SYNEX_QUESTIONS_PER_EXPERT`): the expert's own question first, then others that fit their role, chosen by the small model and topped up by a rule so the count never depends on the model. The expert can answer, say "I don't know", or decline any question. The customer approves the invitations before anything is sent. | small model, rule, customer click |
 | 7 | Response screen | Each answer is accepted, redacted, held for a team member, or rejected. | small model proposes, code verifies |
@@ -104,21 +107,13 @@ The three submitted test cases (`tests/cases/`, checked by `server/tests/test_ca
 | Next | Why it matters | Why not now |
 | --- | --- | --- |
 | **Voice interview for experts** (browser speech in, spoken questions out, refuses to reveal other answers or the client) | an expert can answer in a 5-minute call instead of a form | needs a second interview loop on the expert page and a help-desk answer on browser speech; too much to finish safely before the freeze |
-| **Period validity** | count an expert only for the period they were inside the company, e.g. someone who left in 2024 cannot speak to a 2026 change | needs the period each sub-question is about and per-role dates we have, but no time to test it on real cases |
+| **Period validity** | count an expert only for the period they were inside the company: someone who left in 2024 cannot speak to a 2026 change | needs each sub-question's time period from the plan, and testing on real cases |
 | **Independence-aware panel** | choose people who are independent sources (different team, city or years) instead of the five most similar ones | the independence rule is already computed in the result; choosing the panel by it needs more real answers to tune |
 | **Persistent hosted database** (Postgres) | a redeploy or idle sleep on the free plan empties the database today | the free hosting plan has no persistent disk and a database migration was out of time |
 | **Closed-period rule, do-not-contact list, restricted-list settings** | the remaining compliance rules from the plan | need data the build does not fetch yet (earnings calendars) and settings screens |
-| **Payments in a provider's test mode** | removed from scope for this build; the price is a quote only | removed from scope for this build: the service takes no payment |
+| **Payments in a provider's test mode** | customers pay only for answered sub-questions; experts are paid per accepted answer | out of scope for this build, which makes no payment-like action |
 
-### Not built in this build
-
-The browser voice interview (the expert page is a form), the closed-period rule, a do-not-contact table, per-role city data (independence uses the profile's current city), and any real payment.
-
-### Open questions for the organisers
-
-- Is a development-time cache of real Crustdata responses allowed, if it is off for the finals run?
-- Is a teammate typing a persona's answer on the expert page acceptable?
-- Does one customer click on a batch of anonymised invitations count as "a person's approval" for each email? Until answered, this README describes it exactly as above and claims nothing more.
+Also not built: per-role city data (independence uses the city on the person's current profile).
 
 ## The future of this service
 
@@ -267,28 +262,26 @@ Mailpit was downloaded from its GitHub release page and its checksum was checked
 ## Its sources and checks
 
 ### Data sources it calls
+
 | Source | Calls | Used for |
 | --- | --- | --- |
 | Crustdata Company API | `POST /company/identify` (0.2 credits), `POST /company/enrich` with `competitors` (2 credits) | resolving the company by id; the competitor list for rule 4 |
 | Crustdata Person API | `POST /person/search` with hard filters and a relevance query in `exact` mode (about 0.33 credits per result), `POST /person/enrich` with `experience` and `skills` (1 credit per person) | finding former employees; role descriptions for the shortlist |
 | Anthropic Claude API | `claude-haiku-4-5-20251001` | question screen, plan, company pick, ranking, invitation drafts, response screen, summary |
+
 Crustdata person and company data is indexed, not fetched live from the web: Crustdata refreshes it every 1 to 30 days, and the records used in our runs carry refresh dates from 2026-11-08 to 2026-11-18. Every call, its credits or tokens and its cost are in the cost log.
 
 ### Where a person approves
 
-- The customer approves the plan. Nothing is fetched from Crustdata before that click.
-- The customer reads the anonymised invitations and approves them with one click. Each email still gets its own approval event in the audit trail. Invitations with a review flag start unselected.
-- The customer closes the case when they have enough. It becomes DELIVERED, needs at least one accepted answer, and expert links stop taking answers.
-- Mail leaves only through one function that refuses any address not on a hard-coded allowlist of two teammate addresses (`server/app/actions/mail.py`).
-- The customer never sees a name, a profile link, a city or an email address. Customer routes (`/customer/...`) are separate from operator routes, which do show them.
+Three places, and nowhere else: the customer approves the plan before any data is bought, approves the anonymised invitations before any email is sent, and a team member accepts or rejects any answer the screen holds. Details: [Where it still needs a person](#where-it-still-needs-a-person).
 
 ### The ledger of what each call cost
 
-Every state change, approval, screen verdict, mail event and model or Crustdata call is an event in a hash-chained, append-only table. The Audit trail page has a button that recomputes the whole chain and names the first changed event. The cost log lists every model call with tokens and dollars and every Crustdata call with credits. A per-case Crustdata credit cap and a $25 model budget are enforced in code.
+Every state change, approval, screen verdict, mail event and model or Crustdata call is an event in a hash-chained, append-only table. The Audit trail page has a button that recomputes the whole chain and names the first changed event. The cost log lists every model call with tokens and dollars and every Crustdata call with credits. Each case shows its measured cost in dollars and rupees. A per-case credit cap, a per-case model-spend cap, a run time limit and a $25 overall model budget are enforced in code.
 
 ### Robustness
 
- Each email has an idempotency key (`sha256(case | action | target)`) written `PENDING` before the send and `DONE` after; the key is the email's `Message-ID`, so after a kill the service checks the mailbox before sending anything again, and never re-sends blind. On restart, cases continue from their last finished stage and approved invitations are finished. `server/scripts/kill_test.sh` kills the server with `kill -9` in the middle of sending and checks that the mailbox holds each invitation exactly once (last run: killed after 2 of 4, restarted, 4 emails, one each). Each run has a time limit, a credit cap and a model-spend cap (`server/app/core/config.py`).
+Each email has an idempotency key (`sha256(case | action | target)`) written `PENDING` before the send and `DONE` after; the key is the email's `Message-ID`, so after a kill the service checks the mailbox before sending anything again, and never re-sends blind. On restart, cases continue from their last finished stage and approved invitations are finished. `server/scripts/kill_test.sh` kills the server with `kill -9` in the middle of sending and checks that the mailbox holds each invitation exactly once (last run: killed after 2 of 4, restarted, 4 emails, one each). Each run has a time limit, a credit cap and a model-spend cap (`server/app/core/config.py`).
 
 ### Test cases
 
@@ -317,4 +310,6 @@ Three submitted test cases in `tests/cases/` are real Crustdata records with the
 
 ## Your demo video
 
-**YouTube (unlisted): `DEMO_VIDEO_LINK`** - two minutes, from a question the service has never seen to the finished result with sources.
+**Watch on YouTube: DEMO_VIDEO_LINK**
+
+Two minutes: a question the service has never seen, taken to a finished, sourced result.
