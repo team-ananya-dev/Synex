@@ -58,3 +58,20 @@ def max_companies_per_subquestion() -> int:
 def enrich_top() -> int:
     """People per sub-question whose full profile is fetched (1 credit each). 5 in demo mode, 3 while developing."""
     return 5 if demo_mode() else int(os.environ.get("SYNEX_DEV_ENRICH", "3"))
+
+
+def dev_drafts() -> int:
+    """Outreach drafts per sub-question. 3 in demo mode, 2 while developing."""
+    return 3 if demo_mode() else int(os.environ.get("SYNEX_DEV_DRAFTS", "2"))
+
+
+def smtp_host() -> str:
+    return os.environ.get("SYNEX_SMTP_HOST", "localhost")
+
+
+def smtp_port() -> int:
+    return int(os.environ.get("SYNEX_SMTP_PORT", "1025"))
+
+
+def expert_base_url() -> str:
+    return os.environ.get("SYNEX_EXPERT_BASE_URL", "http://localhost:3000").rstrip("/")

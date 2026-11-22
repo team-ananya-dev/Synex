@@ -14,7 +14,7 @@ from ..core.events import append_event
 from ..crustdata import company as company_api
 from ..crustdata import people as people_api
 from ..crustdata.client import CrustdataClient
-from ..stages import s1_question_screen, s2_decomposer, s3_sourcer, s4_people_screen, s5_ranker
+from ..stages import s1_question_screen, s2_decomposer, s3_sourcer, s4_people_screen, s5_ranker, s6_outreach_writer
 
 DEFAULT_PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1}
 CREDIT_CAP = 25.0
@@ -176,5 +176,11 @@ def _run(conn, case_id: str) -> None:
             }
         return out
 
-    run_stage(conn, case_id, "s5b_enrich_rerank", enrich_all)
-    append_event(conn, case_id, "job.paused", {"reason": "stage 6 (outreach) is not implemented yet"})
+    final = run_stage(conn, case_id, "s5b_enrich_rerank", enrich_all)
+
+    company_names = {str(c["chosen"]["company_id"]): c["chosen"]["name"]
+                     for v in sourced.values() for c in v["companies"] if c["resolved"]}
+    run_stage(conn, case_id, "s6_outreach_writer", lambda: s6_outreach_writer.write_drafts(
+        conn, case_id, work, {idx: r["ranked"] for idx, r in final.items()}, screens, company_names, config.dev_drafts()))
+    set_state(conn, case_id, "AWAITING_APPROVAL")
+    append_event(conn, case_id, "job.paused", {"reason": "outreach drafts are waiting for approval"})

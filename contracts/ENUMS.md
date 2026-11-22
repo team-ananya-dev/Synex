@@ -25,3 +25,7 @@ Today the job runner reaches `PLANNED` and `SOURCING`, plus `REFUSED` and `FAILE
 ## Added 2026-11-22
 
 Stage name `s5b_enrich_rerank` (after `s5_ranker`). Fit labels in ranked items: `strong`, `partial` (`weak` is never on the panel).
+
+## Added 2026-11-22 (stage 6)
+
+Stage name `s6_outreach_writer`. Case state `AWAITING_APPROVAL` is now set by the job runner. Outreach statuses: `DRAFTED`, `SENT`, `REJECTED`, `BLOCKED`, `FAILED`. Approvers: `dev`, `ananya`.

@@ -33,3 +33,8 @@ Written 2026-11-22 by Dev. Append-only: a change needs a message to the other pe
 | `SYNEX_DEV_CACHE=1` | Cache real Crustdata responses in the local DB. Ignored when `SYNEX_DEMO=1`. |
 | `SYNEX_DEV_LIMIT` | Maximum results per Crustdata search when not in demo mode. Default 5. |
 | `SYNEX_DEV_SUBQUESTIONS`, `SYNEX_DEV_COMPANIES`, `SYNEX_DEV_ENRICH` | Development limits (2, 1, 3). Off in demo mode, which uses all sub-questions, 3 companies and 5 enriched people. |
+| `SYNEX_DEV_DRAFTS` | Outreach drafts per sub-question (2 while developing, 3 in demo mode). |
+| `SYNEX_SMTP_HOST`, `SYNEX_SMTP_PORT` | Mail server (default `localhost:1025`, Mailpit). |
+| `SYNEX_EXPERT_BASE_URL` | Base of the private expert link (default `http://localhost:3000`). |
+
+The teammate mail allowlist and the list of registered approvers are hard-coded in `server/app/actions/mail.py` (Dev). Table `outreach` is Dev's.

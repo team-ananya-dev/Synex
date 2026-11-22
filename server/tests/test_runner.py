@@ -31,6 +31,11 @@ class FakeAnthropic:
             sub = {"text": "How does Acme run operations?", "expertise": "operations", "title_keywords": ["operations", "logistics"],
                    "target_companies": [{"name": "Acme", "basis": "named"}]}
             reply = {"subquestions": [sub, sub, sub]}
+        elif "subject" in props:
+            reply = {"subject": "Quick questions about your time at Acme",
+                     "body": "Hello {{first_name}},\n\nWould you answer a few questions? It is voluntary, answers are screened and must not "
+                             "contain confidential information. Payment per accepted answer is simulated in this demonstration.\n\n"
+                             "Your private link: {{link}}\n\nThe Synex team"}
         elif "company_id" in props:
             reply = {"company_id": int(re.search(r"id (\d+)", user).group(1)), "reason": "fits", "confident": True}
         else:
@@ -100,13 +105,13 @@ def test_full_run_streams_stages_and_ends_paused(api):
     cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
     evs = events(client, cid)
     done = [e["stage"] for e in evs if e["type"] == "stage.done"]
-    assert done == ["s1_question_screen", "s2_decomposer", "s3_sourcer", "s4_people_screen", "s5_ranker", "s5b_enrich_rerank"]
+    assert done == ["s1_question_screen", "s2_decomposer", "s3_sourcer", "s4_people_screen", "s5_ranker", "s5b_enrich_rerank", "s6_outreach_writer"]
     assert evs[-1]["type"] == "job.paused"
     states = [e["state"] for e in evs if e["type"] == "case.state"]
-    assert states == ["PLANNED", "SOURCING"]
+    assert states == ["PLANNED", "SOURCING", "AWAITING_APPROVAL"]
 
     view = client.get(f"/cases/{cid}").json()
-    assert view["state"] == "SOURCING"
+    assert view["state"] == "AWAITING_APPROVAL"
     ranked = view["stages"]["s5_ranker"]["1"]["ranked"]
     assert [r["person_id"] for r in ranked] == [1]  # person 2 still works at Acme and failed the screen
     assert ranked[0]["evidence"] == ["Operations Manager"] and ranked[0]["crustdata_fit"] == "strong"
@@ -141,7 +146,7 @@ def test_failed_competitor_lookup_gives_review_not_a_silent_pass(api, monkeypatc
     monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(handler))
     cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
     view = client.get(f"/cases/{cid}").json()
-    assert view["state"] == "SOURCING"
+    assert view["state"] == "AWAITING_APPROVAL"
     s4 = {s["person_id"]: s["verdict"] for s in view["stages"]["s4_people_screen"]["1"]}
     assert s4[1] == "review" and s4[3] == "review"
     assert any(e["type"] == "competitor.lookup_failed" for e in events(client, cid))

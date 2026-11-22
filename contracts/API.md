@@ -48,3 +48,21 @@ Additive: nothing above was removed.
 
 - `s3_sourcer`: each resolved company also has `competitor_domains` (list of website domains, or `null` if the lookup failed) and `competitors_call_id`. Each candidate also has `current_roles`: `[{"company_id", "name", "website", "title", "seniority"}]`.
 - `s4_people_screen`: a new rule `rule_competitor` appears in each person's `results`. It fails on a sensitive current role at a direct competitor (seniority Experienced Manager, Director, Vice President, CXO or Owner / Partner, or a strategy, pricing, product, category, procurement, finance or head-type title). Any other role at a competitor gives verdict `review` with a `flag: true` entry. If the competitor list could not be fetched, every person is `review`, never a silent `pass`. Show the `reason` of flagged entries to the operator.
+
+## Changes 2026-11-22 (Dev): stage 6 outreach drafts and the approval queue
+Additive: nothing above was removed. Everything here is **operator-only**: it shows real people's names. Never render it on a customer screen.
+
+- A finished job now ends in state `AWAITING_APPROVAL` (after `PLANNED`, `SOURCING`) and emits `job.paused`. The event stream closes at `job.paused`. To follow approvals live, open it again with `?after=<last event id>`: it stays open, so close it client-side.
+- Stage `s6_outreach_writer` result: a list of `{"outreach_id", "person_id", "persona", "subquestion_indices", "to_address", "flagged"}`. One draft per person, listing every sub-question they were picked for. `to_address` is always a teammate (see below).
+- Persona routing: a real expert's email is never stored. Each draft is addressed to one of the two allowlisted teammate addresses, who plays that expert. The private link in the body is `<SYNEX_EXPERT_BASE_URL>/expert/<token>` (default `http://localhost:3000/expert/<token>`). The expert page route that resolves the token is Ananya's: `server/app/routes/expert.py`. The `token` column of the `outreach` table is the lookup key.
+
+### `GET /approvals?status=DRAFTED&case_id=<id>`
+Both filters optional. Returns a list of
+`{"id", "case_id", "person_id", "name", "persona_title", "persona_company", "tenure_months", "subquestion_indices", "flags": [{"rule", "reason"}], "to_address", "subject", "body", "status", "decided_by", "decided_at", "sent_at", "block_reason", "llm_call_id", "created_at"}`.
+`flags` are the manual-review reasons from the people screen (for example a role at a competitor) that the approver must read. `status` is one of `DRAFTED`, `SENT`, `REJECTED`, `BLOCKED`, `FAILED`.
+
+### `POST /approvals/{id}/approve` and `POST /approvals/{id}/reject`
+Body `{"approver": "dev"}` or `{"approver": "ananya"}` (case-insensitive). This is the human click. Returns the updated item.
+- `403` if the approver is not a registered team member, `404` for an unknown id, `409` if the draft was already decided.
+- Approve sends through the allowlist gate: `SENT` on success; `BLOCKED` (with `block_reason`) if the address is not on the teammate allowlist, which is a visible refusal and an audit event; `FAILED` if the mail server could not be reached. Show `block_reason` to the operator.
+- Nothing is sent without this click, and nothing is retried silently.

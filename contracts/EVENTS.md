@@ -22,3 +22,16 @@ The stream also closes after a `case.state` of `REFUSED` or `FAILED`. Events car
 | Type | Extra fields | Meaning |
 | --- | --- | --- |
 | `competitor.lookup_failed` | `company_id`, `error` | The competitor list for a target company could not be fetched. People from that company are marked `review`. |
+
+## Added 2026-11-22 (stage 6)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `approval.requested` | `outreach_id`, `person_id`, `persona`, `subquestion_indices`, `flagged` | A draft is waiting in the approval queue. No name or address in the payload. |
+| `approval.approved` | `outreach_id`, `by` | A team member clicked approve. |
+| `approval.rejected` | `outreach_id`, `by` | A team member clicked reject. |
+| `mail.sent` | `outreach_id`, `to` | The email was handed to the mail server (Mailpit in development). |
+| `mail.blocked` | `outreach_id`, `reason` | Refused: the address is not on the teammate allowlist. |
+| `mail.failed` | `outreach_id`, `error` | The mail server could not be reached or refused the message. |
+
+The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need a new connection with `?after=`.

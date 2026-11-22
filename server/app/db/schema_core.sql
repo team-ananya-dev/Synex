@@ -90,3 +90,29 @@ CREATE TRIGGER IF NOT EXISTS stage_results_no_update BEFORE UPDATE ON stage_resu
 BEGIN SELECT RAISE(ABORT, 'stage_results is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS stage_results_no_delete BEFORE DELETE ON stage_results
 BEGIN SELECT RAISE(ABORT, 'stage_results is append-only'); END;
+
+-- Outreach drafts and their approval. status: DRAFTED, SENT, REJECTED, BLOCKED (not on the allowlist), FAILED (mail error).
+-- Every status change is also an audit event. to_address is always a teammate: no expert address is ever stored.
+CREATE TABLE IF NOT EXISTS outreach (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id            TEXT NOT NULL,
+    person_id          INTEGER NOT NULL,
+    name               TEXT,                 -- operator view only
+    persona_title      TEXT,
+    persona_company    TEXT,
+    tenure_months      INTEGER,
+    subquestion_indices TEXT NOT NULL,       -- JSON list
+    flags              TEXT NOT NULL,        -- JSON: screen reasons the approver must see
+    token              TEXT NOT NULL UNIQUE, -- private link to the expert page
+    to_address         TEXT NOT NULL,
+    subject            TEXT NOT NULL,
+    body               TEXT NOT NULL,
+    status             TEXT NOT NULL,
+    decided_by         TEXT,
+    decided_at         TEXT,
+    sent_at            TEXT,
+    block_reason       TEXT,
+    llm_call_id        TEXT,
+    created_at         TEXT NOT NULL,
+    UNIQUE (case_id, person_id)
+);
