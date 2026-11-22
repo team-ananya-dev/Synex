@@ -18,14 +18,14 @@ export function pondDrop(x: number, y: number, power = 1) {
 type RGB = [number, number, number];
 const hex = (h: string): RGB => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
-const WATER: RGB[] = [hex("#09111e"), hex("#070d18"), hex("#050911")];
-const RIM = hex("#111c2e");
-const TROUGH = hex("#04070d");
-const CREST = hex("#2f4a6e");
-const PAD = [hex("#1a5c33"), hex("#22703c"), hex("#144a29")];
-const PAD_RIM = hex("#0d321c");
-const PAD_LIGHT = hex("#3f8f4f");
-const PAD_VEIN = hex("#154f2c");
+const WATER: RGB[] = [hex("#060b14"), hex("#050910"), hex("#04070c")];
+const RIM = hex("#0a1220");
+const TROUGH = hex("#020306");
+const CREST = hex("#3c5f8c");
+const PAD = [hex("#144a29"), hex("#1a5a32"), hex("#103d22")];
+const PAD_RIM = hex("#0a2817");
+const PAD_LIGHT = hex("#2f7340");
+const PAD_VEIN = hex("#114226");
 const PETAL = hex("#e4f5ff");
 const PETAL_CORE = hex("#8fd0f0");
 const YELLOW = hex("#f2cf4a");
@@ -119,7 +119,7 @@ export function Pond() {
 
       // water: darker pools with a lighter rim, like shadows on a pond floor
       const depth = new Float32Array(W * H);
-      for (let k = 0; k < Math.max(18, (W * H) / 2500); k++) {
+      for (let k = 0; k < Math.max(8, (W * H) / 6000); k++) {
         const cx = rand() * W, cy = rand() * H, rx = 14 + rand() * 40, ry = 8 + rand() * 24, lvl = rand() < 0.4 ? 2 : 1;
         for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(H, cy + ry); y++)
           for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(W, cx + rx); x++)
@@ -135,7 +135,7 @@ export function Pond() {
 
       // lily pads cluster at the sides and leave open water in the middle for the words
       pads = [];
-      const n = Math.round((W * H) / 1700);
+      const n = Math.round((W * H) / 3600);
       for (let k = 0; k < n; k++) {
         const side = rand();
         const x = side < 0.42 ? rand() * W * 0.26 : side < 0.84 ? W * 0.74 + rand() * W * 0.26 : W * (0.3 + rand() * 0.4);
@@ -160,9 +160,9 @@ export function Pond() {
 
       // reeds in clumps at the corners and edges
       blades = [];
-      const clumps: [number, number][] = [[0.04, 0.95], [0.12, 0.99], [0.9, 0.35], [0.97, 0.55], [0.86, 0.98], [0.02, 0.12], [0.95, 0.05]];
+      const clumps: [number, number][] = [[0.05, 0.97], [0.95, 0.5], [0.9, 0.99]];
       for (const [cx, cy] of clumps)
-        for (let k = 0; k < 9 + rand() * 7; k++)
+        for (let k = 0; k < 6 + rand() * 4; k++)
           blades.push({ x: cx * W + (rand() - 0.5) * 16, y: cy * H + (rand() - 0.5) * 6, len: 12 + rand() * 22,
             a: -Math.PI / 2 + (rand() - 0.5) * 0.9, bend: 0, vb: 0, flower: rand() < 0.1 });
 
@@ -170,7 +170,7 @@ export function Pond() {
         const x = rand() * W, y = rand() * H;
         return { x, y, tx: x, ty: y, a: 0, speed: 0.4, wait: 0 };
       });
-      specks = Array.from({ length: Math.round((W * H) / 900) }, () => {
+      specks = Array.from({ length: Math.round((W * H) / 3000) }, () => {
         const nearPad = pads[(rand() * pads.length) | 0];
         const x = nearPad && rand() < 0.7 ? nearPad.x + (rand() - 0.5) * 30 : rand() * W;
         const y = nearPad && rand() < 0.7 ? nearPad.y + (rand() - 0.5) * 30 : rand() * H;
@@ -191,7 +191,7 @@ export function Pond() {
       // pointer wake
       if (pointer.active && pointer.px > -900) {
         const sp = Math.hypot(pointer.x - pointer.px, pointer.y - pointer.py);
-        if (sp > 0.6 && t % 3 === 0) disturb(pointer.x, pointer.y, 1, Math.min(sp, 4) * 1.6);
+        if (sp > 0.25) disturb(pointer.x, pointer.y, 1.5, Math.min(sp, 5) * 3.2);
       }
       pointer.px = pointer.x;
       pointer.py = pointer.y;
@@ -306,7 +306,7 @@ export function Pond() {
           const c = lvl === 3 ? RIM : WATER[lvl];
           const s = (cur[i - 1] - cur[i + 1]) + (cur[i - W] - cur[i + W]);
           // three flat tones only, so ripples read as pixel rings rather than a smooth gradient
-          const k = s > 2.2 ? CREST : s < -2.2 ? TROUGH : c;
+          const k = s > 1.6 ? CREST : s < -1.6 ? TROUGH : c;
           px[i] = 0xff000000 | (k[2] << 16) | (k[1] << 8) | k[0];
         }
       }
@@ -446,11 +446,19 @@ export function Pond() {
   }, []);
 
   return (
-    <canvas
-      ref={ref}
-      aria-hidden
-      className="fixed inset-0 -z-10 h-screen w-screen"
-      style={{ imageRendering: "pixelated" }}
-    />
+    <>
+      <canvas
+        ref={ref}
+        aria-hidden
+        className="fixed inset-0 -z-10 h-screen w-screen"
+        style={{ imageRendering: "pixelated" }}
+      />
+      {/* shade over the pond so text stays readable: darkest behind the centre column */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{ background: "radial-gradient(ellipse 55% 70% at 50% 50%, rgba(2,4,8,.6), rgba(2,4,8,.25) 70%, rgba(2,4,8,.15))" }}
+      />
+    </>
   );
 }

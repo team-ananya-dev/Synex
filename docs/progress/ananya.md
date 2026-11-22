@@ -130,3 +130,11 @@ Blocked on: nothing.
 Contracts touched: none.
 
 Libraries and tools to credit in the README (rule 7), changed: Instrument Serif (Google Fonts, SIL Open Font License) replaces Pixelify Sans and Silkscreen.
+
+## 2026-11-22 15:13 IST ananya landing-pond-tune
+Done: `web/src/components/landing/Pond.tsx`: less clutter (about half the lily pads and dark pools, a third of the duckweed, three reed clumps instead of seven); darker water and pads plus a fixed shade over the pond, darkest behind the centre column, so text reads better; a clear ripple trail behind the pointer (stronger wake every frame, lower threshold for the ripple rings, slightly brighter crest).
+In progress: nothing.
+Next: push; customer "Review invitations" step; stage 8 memo.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
