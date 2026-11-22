@@ -100,3 +100,8 @@ def operator_key() -> str:
 
 def mailpit_api() -> str:
     return os.environ.get("SYNEX_MAILPIT_API", "http://localhost:8025").rstrip("/")
+
+
+def send_delay_seconds() -> float:
+    """Kill test only: a pause between invitation sends, so the process can be killed mid-batch. 0 normally."""
+    return float(os.environ.get("SYNEX_SEND_DELAY_SECONDS", "0"))

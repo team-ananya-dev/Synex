@@ -12,12 +12,15 @@ from .jobs.mailbox_routes import router as mailbox_router
 from .jobs.routes import router as cases_router
 from .routes.expert import router as expert_router
 from .routes.result import router as result_router
+from .jobs import runner
 from .stages import s7_response_screen
 
 @asynccontextmanager
 async def lifespan(_app):
     # answers whose screening died with a restart get screened now (stage 7, safe to repeat)
     threading.Thread(target=s7_response_screen.sweep_unscreened, daemon=True).start()
+    # cases and approved invitations that a restart interrupted continue now, each action exactly once
+    threading.Thread(target=runner.resume_on_startup, daemon=True).start()
     yield
 
 

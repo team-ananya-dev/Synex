@@ -81,6 +81,29 @@ def _guarded(case_id: str, phase) -> None:
         conn.close()
 
 
+def resume_on_startup() -> None:
+    """After a restart: finish approved-but-unsent invitations, then continue every case that was mid-run, from its
+    last finished stage. A case stuck in SOURCING without a plan approval predates that step and cannot resume."""
+    import threading
+    from ..actions import queue
+    conn = db.connect()
+    try:
+        for cid in queue.resume_sends(conn):
+            if conn.execute("SELECT state FROM cases WHERE id=?", (cid,)).fetchone()["state"] == "AWAITING_APPROVAL":
+                set_state(conn, cid, "COLLECTING")
+        pending = list(conn.execute("SELECT id, state, params FROM cases WHERE state IN ('DRAFT', 'SOURCING')"))
+        for c in pending:
+            approved = "panel_size" in json.loads(c["params"])
+            if c["state"] == "SOURCING" and not approved:
+                append_event(conn, c["id"], "stage.failed", {"stage": "runner", "error": "pre-stage-6 dev run: no plan approval, cannot resume"})
+                set_state(conn, c["id"], "FAILED", reason="pre-stage-6 dev run")
+                continue
+            append_event(conn, c["id"], "case.resumed", {"from_state": c["state"]})
+            threading.Thread(target=continue_case if c["state"] == "SOURCING" else run_case, args=(c["id"],), daemon=True).start()
+    finally:
+        conn.close()
+
+
 def retry_case(case_id: str) -> None:
     """Continue a stopped case from its last finished stage: phase 2 if the plan was approved, else phase 1."""
     conn = db.connect()
