@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, MAILPIT_URL } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export function Nav() {
   const path = usePathname();
@@ -30,7 +30,7 @@ export function Nav() {
           <span className="rounded-full bg-amber-950 px-[7px] text-[11px] font-medium text-amber-300">{pending}</span>
         )}
       </Link>
-      <a href={MAILPIT_URL} target="_blank" rel="noreferrer" className={color(false)}>Mailbox ↗</a>
+      <Link href="/operator/mailbox" className={color(path.startsWith("/operator/mailbox"))}>Mailbox</Link>
       <Link href="/operator/audit" className={color(path.startsWith("/operator/audit"))}>Audit trail</Link>
     </nav>
   );
