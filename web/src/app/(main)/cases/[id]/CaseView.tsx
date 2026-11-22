@@ -31,7 +31,7 @@ const REFRESH_ON = new Set([
 
 type Tab = "plan" | "live" | "result" | "costs";
 type SourcingSummary = Record<string, {
-  companies: { asked: string; resolved: boolean; name: string | null; total_matches: number | null }[];
+  companies: { asked: string; resolved: boolean; name: string | null; total_matches: number | null; cannot_verify?: boolean; reason?: string | null }[];
   found: number;
 }>;
 
@@ -337,7 +337,7 @@ function SubQuestionCard({ sq, data, sourcing }: { sq: SubQuestion; data: Custom
   const panel = data.panel[idx];
   const sourcedLine = [
     ...(sourcing?.companies.map((c) =>
-      c.resolved ? `${c.name}: ${c.total_matches ?? "?"} matches` : `${c.asked}: not found in Crustdata`) ?? []),
+      c.resolved ? `${c.name}: ${c.total_matches ?? "?"} matches` : `${c.asked}: not searched (${c.reason ?? "the company record could not be confirmed"})`) ?? []),
     screening && `${screening.considered} screened: ${screening.pass} passed, ${screening.review} need review, ${screening.fail} excluded`,
   ].filter(Boolean).join(" · ");
 
