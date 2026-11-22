@@ -164,3 +164,13 @@ Decided by the team at about 14:45: no payment provider, no simulated ledger, no
 - `plan.approved` event carries `panel_size`, `quoted_price_inr`, `label`. No `ledger.*` events are emitted any more.
 - Expert page payout (Ananya's route) carries `terms: "payout terms shown for illustration; no payment is made in this build"`.
 - `cost.credit_cap` comes from `SYNEX_CASE_CREDIT_CAP` (default 25 while developing, 250 in demo mode).
+
+## Changes 2026-11-22 (Ananya): gaps found in the first full run
+Additive except where marked. Dev was told in `docs/inbox/dev/2026-11-22-ananya-gap-fixes.md`.
+
+- **Stage 1 (`s1_question_screen`) result** has two new fields: `named_companies` (companies the question names, kept only if the name really appears in the question) and `restored_companies` (names a rewrite dropped and code appended back to `effective_question`). The prompt now says naming a company is not a reason to refuse or rewrite.
+- **Coarse role labels (customer-safe).** In `GET /customer/cases/{id}/responses` and `GET /customer/cases/{id}/result`, an answer's `role` is the exact title only when at least 3 different experts with that title have accepted answers in the case; otherwise it is a coarse label such as "Sales manager" or "Senior supply chain leader" (`server/app/anonymity.py`). Panel cards and invitations are unchanged.
+- **Changed: `status` in the result** can also be `"not sourced"`: the sub-question was never searched (development limits). `"no accepted answer"` now means it was searched and has nothing accepted yet.
+- **Changed: `label` in the result** can also be `"multiple sources, different aspects"` (`label_basis: "model"`): the summary step found that the answers talk about different things. `consensus` and `split` now need the same point to be supported or contradicted.
+- **New: `POST /customer/cases/{id}/close`.** The customer ends collection. `200 {"id", "state": "DELIVERED", "answered_subquestions": [int]}`; `409` if the case is not `COLLECTING` or has no accepted answer; `404` unknown case. Emits `case.state` with `state: "DELIVERED"`, `answered_subquestions`, `by: "customer"`. Afterwards expert links that have not submitted show "closed", and `POST /expert/{token}/responses` returns `409`.
+- **`GET /expert/{token}`** has a new field `screening` once answers are submitted: `[{"index", "kind", "verdict": accepted|redacted|held|rejected|pending, "reason", "removed": [str]}]`, the expert's own result per answer (site flow: the expert is told which and why).

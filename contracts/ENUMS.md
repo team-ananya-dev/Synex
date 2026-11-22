@@ -45,3 +45,7 @@ Approvers: `customer` (approves the invitations of their own case), `dev`, `anan
 ## Added 2026-11-22 (Ananya, stage 7)
 
 Response screen verdicts: `accepted`, `redacted`, `held`, `rejected`. Stage name `s7_response_screen` (runs per response, not in the case job, so it has no `stage.*` events).
+
+## Added 2026-11-22 (Ananya, gap fixes)
+
+Case state `DELIVERED` is now set, by `POST /customer/cases/{id}/close`. Result `status` adds `not sourced`. Result `label` adds `multiple sources, different aspects`.

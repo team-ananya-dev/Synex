@@ -204,3 +204,11 @@ Next: Dev reviews the README (request in `docs/inbox/dev/2026-11-22-ananya-readm
 Decisions: README drafted by me in full, Dev corrects his parts. The demo video link is not in the README yet.
 Blocked on: Dev, review of the README claims about his modules.
 Contracts touched: none.
+
+## 2026-11-22 16:20 IST ananya gap-contracts
+Done: contract additions for the gap fixes: stage 1 named_companies and restored_companies, coarse role labels, result status not sourced, label different aspects, POST /customer/cases/{id}/close, expert screening field (`contracts/API.md`, `ENUMS.md`).
+In progress: nothing.
+Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as experts; demo video.
+Decisions: Ananya asked for the fixes without waiting for Dev; Dev told in `docs/inbox/dev/2026-11-22-ananya-gap-fixes.md`.
+Blocked on: nothing.
+Contracts touched: API.md, ENUMS.md (this commit)
