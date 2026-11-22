@@ -112,3 +112,9 @@ def test_network_errors_are_retried_then_logged(conn, monkeypatch):
     with pytest.raises(CrustdataError):
         down.post("/person/search", {"x": 1}, "t")
     assert conn.execute("SELECT COUNT(*) c FROM crustdata_calls WHERE status=0").fetchone()["c"] == 1
+
+
+def test_secrets_pasted_with_whitespace_are_trimmed(monkeypatch):
+    monkeypatch.setenv("CRUSTDATA_API_KEY", "  abc123\n")
+    monkeypatch.setenv("SYNEX_OPERATOR_KEY", "k3y\n")
+    assert config.crustdata_key() == "abc123" and config.operator_key() == "k3y"

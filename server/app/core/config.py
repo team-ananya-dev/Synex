@@ -39,7 +39,7 @@ def db_path() -> Path:
 
 
 def crustdata_key() -> str:
-    key = os.environ.get("CRUSTDATA_API_KEY", "")
+    key = os.environ.get("CRUSTDATA_API_KEY", "").strip()
     if not key:
         raise RuntimeError("CRUSTDATA_API_KEY is not set in .env")
     return key
@@ -95,7 +95,7 @@ def web_origins() -> list[str]:
 
 def operator_key() -> str:
     """When set (hosted deployments), operator routes need this key. Empty means open (local development)."""
-    return os.environ.get("SYNEX_OPERATOR_KEY", "")
+    return os.environ.get("SYNEX_OPERATOR_KEY", "").strip()
 
 
 def mailpit_api() -> str:

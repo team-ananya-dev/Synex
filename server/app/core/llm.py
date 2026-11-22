@@ -61,7 +61,7 @@ def call_json(
 ) -> tuple[dict, str]:
     """Return (validated reply, call_id of the accepted attempt)."""
     if client is None:
-        key = os.environ.get("SYNEX_ANTHROPIC_KEY")
+        key = os.environ.get("SYNEX_ANTHROPIC_KEY", "").strip()  # a pasted key can carry a newline, which breaks the header
         if not key:
             raise RuntimeError("SYNEX_ANTHROPIC_KEY is not set in .env")
         client = anthropic.Anthropic(api_key=key)
