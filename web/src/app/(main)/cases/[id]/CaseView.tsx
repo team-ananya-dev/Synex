@@ -11,6 +11,7 @@ import {
 import { useCaseEvents } from "@/lib/useCaseEvents";
 import { Pill, StateBadge, TONE } from "@/components/StateBadge";
 import { CostTable } from "@/components/CostTable";
+import { ResultTab } from "@/components/ResultTab";
 
 const STAGES: [string, string][] = [
   ["s1_question_screen", "Question screen"],
@@ -26,10 +27,10 @@ const STAGES: [string, string][] = [
 const REFRESH_ON = new Set([
   "case.state", "plan.approved", "stage.done", "stage.failed", "llm.call", "crustdata.call", "job.paused",
   "approval.approved", "approval.rejected", "mail.sent", "mail.blocked", "mail.failed",
-  "outreach.batch_approved", "response.received",
+  "outreach.batch_approved", "response.received", "response.screened",
 ]);
 
-type Tab = "plan" | "live" | "costs";
+type Tab = "plan" | "live" | "result" | "costs";
 type SourcingSummary = Record<string, {
   companies: { asked: string; resolved: boolean; name: string | null; total_matches: number | null }[];
   found: number;
@@ -94,7 +95,7 @@ export function CaseView() {
       </section>
 
       <div className="flex gap-1 border-b border-zinc-800">
-        {(["plan", "live", "costs"] as Tab[]).map((t) => (
+        {(["plan", "live", "result", "costs"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -107,6 +108,7 @@ export function CaseView() {
 
       {current === "plan" && <PlanTab data={data} events={events} onChanged={load} />}
       {current === "live" && <LiveTab data={data} events={events} />}
+      {current === "result" && <ResultTab caseId={data.id} events={events} />}
       {current === "costs" && <CostsTab data={data} />}
     </div>
   );

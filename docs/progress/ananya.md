@@ -162,3 +162,11 @@ Next: Result tab on the case page against `contracts/2026-11-22-dev-results.md`;
 Decisions: Dev owns the stage 8 result (`s8_result.py`, `routes/result.py`); I will not build a second one. The large-model price request is no longer needed.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:28 IST ananya result-tab
+Done: Result tab on the case page (`web/src/components/ResultTab.tsx`, hooked into `web/src/app/(main)/cases/[id]/CaseView.tsx`) on Dev's `GET /customer/cases/{id}/result` and `POST .../result/summary`. Per sub-question: accepted answers by anonymous ref, independent-source count, agreement label, confidence (computed in code), the cited summary with the dropped-uncited count, and how the sources were counted. Refetches after every `response.screened` and `result.summary_written`. Handles 409 and 503 from the summary route. Types and calls in `web/src/lib/api.ts`; Live tab now refreshes on `response.screened` (that event had been dropped from the refresh list).
+In progress: nothing.
+Next: run one full case by hand (ask, approve plan, approve invitations, answer as the expert from Mailpit, check Live and Result); then voice if time.
+Decisions: the Result tab is only a view; every figure comes from Dev's route.
+Blocked on: nothing.
+Contracts touched: none.

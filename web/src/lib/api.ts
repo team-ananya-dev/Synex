@@ -205,6 +205,25 @@ export type ScreenedResponse = {
 };
 export type CustomerResponses = { coverage: Coverage; responses: ScreenedResponse[] };
 
+// ---- result (stage 8, Dev's route): GET /customer/cases/{id}/result, customer-safe ----
+
+export type ResultLabel = "single source" | "consensus" | "split" | "multiple sources, agreement not assessed";
+export type ResultSubquestion = {
+  index: number; text: string; status: "answered" | "no accepted answer";
+  coverage: { received: number; pending: number; accepted: number; redacted: number; held: number; rejected: number };
+  answers: { ref: string; response_id: string; role: string | null; company: string | null; verdict: "accepted" | "redacted"; text: string; confidence: Confidence | null; mode: string }[];
+  independent_sources: number;
+  groups: { refs: string[]; evidence: string }[];
+  independence_unchecked: { ref: string; missing: string[] }[];
+  label: ResultLabel | null; label_basis: "code" | "model";
+  confidence: "High" | "Medium" | "Low" | null;
+  summary: null | { sentences: { text: string; cites: string[] }[]; dropped_uncited: number; llm_call_id: string };
+};
+export type CaseResult = {
+  case_id: string; question: string; state: CaseState; computed_at: string;
+  subquestions: ResultSubquestion[]; summary_status: "not written" | "written" | "stale";
+};
+
 // GET /operator/responses: operator only, full text and the screen's reasoning.
 export type OperatorResponse = {
   response_id: string; case_id: string; ref: string; persona_title: string | null; persona_company: string | null;
@@ -279,6 +298,8 @@ export const api = {
     return request<Approval[]>(`/approvals${q.size ? `?${q}` : ""}`);
   },
   // screened responses
+  caseResult: (caseId: string) => request<CaseResult>(`/customer/cases/${caseId}/result`),
+  writeSummary: (caseId: string) => request<CaseResult>(`/customer/cases/${caseId}/result/summary`, { method: "POST" }),
   customerResponses: (caseId: string) => request<CustomerResponses>(`/customer/cases/${caseId}/responses`),
   operatorResponses: (filters: { status?: string; case_id?: string } = {}) => {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
