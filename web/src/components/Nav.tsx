@@ -11,9 +11,13 @@ export function Nav() {
 
   useEffect(() => {
     // held answers waiting for a team member
-    const load = () => api.operatorResponses({ status: "held" }).then((r) => setPending(r.length)).catch(() => {});
-    load();
+    // stops polling when the server asks for the operator key and none is saved in this browser
+    const load = () =>
+      api.operatorResponses({ status: "held" }).then((r) => setPending(r.length)).catch((e: Error) => {
+        if (e.message.startsWith("401")) clearInterval(t);
+      });
     const t = setInterval(load, 5000);
+    load();
     return () => clearInterval(t);
   }, []);
 
