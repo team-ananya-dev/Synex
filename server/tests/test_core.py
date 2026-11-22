@@ -87,3 +87,10 @@ def test_events_are_append_only_and_chained(conn):
         conn.execute("DELETE FROM crustdata_calls")
     with pytest.raises(sqlite3.DatabaseError):
         conn.execute("UPDATE crustdata_calls SET credits=0")
+
+
+def test_web_origins_default_and_extra(monkeypatch):
+    monkeypatch.delenv("SYNEX_WEB_ORIGINS", raising=False)
+    assert config.web_origins() == ["http://localhost:3000", "http://127.0.0.1:3000"]
+    monkeypatch.setenv("SYNEX_WEB_ORIGINS", "http://localhost:3001, http://127.0.0.1:3001")
+    assert config.web_origins()[2:] == ["http://localhost:3001", "http://127.0.0.1:3001"]

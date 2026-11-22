@@ -80,3 +80,9 @@ def expert_base_url() -> str:
 def price_per_subquestion() -> float:
     """Simulated price per answered sub-question. A placeholder: the real rate is undecided."""
     return float(os.environ.get("SYNEX_PRICE_PER_SUBQUESTION", "100"))
+
+
+def web_origins() -> list[str]:
+    """Browser origins allowed to call the API. The Next.js app is on port 3000; SYNEX_WEB_ORIGINS adds more (comma separated)."""
+    extra = [o.strip() for o in os.environ.get("SYNEX_WEB_ORIGINS", "").split(",") if o.strip()]
+    return ["http://localhost:3000", "http://127.0.0.1:3000", *extra]

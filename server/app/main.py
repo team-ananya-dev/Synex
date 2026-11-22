@@ -8,7 +8,7 @@ from .jobs.routes import router as cases_router
 
 app = FastAPI(title="Synex")
 # the Next.js app runs on another port in development
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+app.add_middleware(CORSMiddleware, allow_origins=config.web_origins(),
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(cases_router)
 app.include_router(approvals_router)
