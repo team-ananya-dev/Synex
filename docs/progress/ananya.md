@@ -23,3 +23,25 @@ Contracts touched: none.
 
 Libraries and tools to credit in the README (rule 7): Next.js 16.4.6, React 19.3.0, Tailwind CSS 4.3.3, TypeScript, ESLint with eslint-config-next (all npm, from create-next-app).
 Commands run (rule 10): `npx --yes create-next-app@latest web --ts --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm --no-turbopack --disable-git --yes`; `npm install` (inside the generator).
+
+## 2026-11-22 14:04 IST ananya expert-contracts
+Done: appended the expert page routes (`GET /expert/{token}`, `POST /expert/{token}/responses`) to `contracts/API.md`, the `response.received` event to `contracts/EVENTS.md`, and response mode, kind and confidence values to `contracts/ENUMS.md`. Additive only.
+In progress: the expert page itself (next commit).
+Next: see the next entry.
+Decisions: `response.received` never carries answer text or personal data, so the customer stream can pass it through.
+Blocked on: nothing.
+Contracts touched: API.md, EVENTS.md, ENUMS.md (this commit).
+
+## 2026-11-22 14:04 IST ananya expert-page
+Done:
+- Server: `server/app/routes/expert.py` (expert page API: `GET /expert/{token}` shows persona, sub-questions, simulated payout, only for links whose outreach is `SENT`; `POST /expert/{token}/responses` stores one append-only row per sub-question with a `response_id` the memo can cite, emits `response.received`, moves the case to `COLLECTING`). `server/app/db/schema_expert.sql` (`responses`, append-only triggers). `server/tests/test_expert.py`, 4 tests; full suite 77 pass (with Dev's new decomposer test).
+- Web: `/expert/[token]` (`web/src/app/expert/[token]/ExpertView.tsx`): greeting, persona, three ground rules, simulated payout, per sub-question answer / I don't know / can't answer without confidential information, confidence rating, four attestations, one submission per link. `web/src/lib/api.ts`: expert calls and readable validation errors.
+- Inbox to Dev: `docs/inbox/dev/2026-11-22-ananya-register-expert-router.md` (two lines for `main.py`).
+In progress: nothing half done. Not tried live: needs the router in `main.py` and an approved, sent draft (Mailpit running).
+Next:
+1. Stage 7 response screen (`server/app/stages/s7_response_screen.py`), run after each submission; `response_screens` table.
+2. Coverage meter and screened-answer counts on the case page.
+3. Audit trail and cost log screen.
+Decisions: one submission per link (answers are never edited). Simulated expert payout `SYNEX_EXPERT_PAYOUT`, default 50, no ledger entry yet.
+Blocked on: Dev, two lines in `server/app/main.py` to serve the expert routes (request file above). Dev, large model price before stage 8.
+Contracts touched: API.md, EVENTS.md, ENUMS.md in the previous commit.

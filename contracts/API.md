@@ -115,3 +115,16 @@ The same events as the operator stream with personal data removed: `stage.done` 
 
 ### Expert page hand-off (for `server/app/routes/expert.py`)
 `from app.actions.queue import expert_context`; `expert_context(conn, token)` returns `None` for an unknown token, else `{"outreach_id", "case_id", "person_id", "first_name", "status", "subquestions": [{"index", "text"}]}`. Only accept a link whose `status` is `SENT`. It holds no customer information and nothing about other experts. Store responses with `case_id`, `person_id`, `outreach_id` and the sub-question index so the memo can cite them.
+
+## Changes 2026-11-22 (Ananya): expert page
+Additive. Router `server/app/routes/expert.py` (Ananya); it is served once `main.py` includes it (request to Dev in `docs/inbox/dev/`). These routes are for the expert page only: no customer, no other experts, no contact details.
+
+### `GET /expert/{token}`
+`404` for an unknown token. A link whose outreach is not `SENT` returns `{"available": false, "reason"}`. Otherwise:
+`{"available": true, "first_name", "persona": {"role", "company", "tenure_months"}, "subquestions": [{"index", "text"}], "submitted": bool, "payout": {"per_accepted_answer", "currency": "USD (simulated)"}}`.
+
+### `POST /expert/{token}/responses`
+Body `{"mode": "form" | "voice" | "text", "attestations": {"not_current_employee", "left_as_shown", "no_blocking_confidentiality", "no_confidential_info"}: all true, "answers": [{"index", "kind": "answer" | "dont_know" | "confidential", "text", "confidence": "low" | "medium" | "high" | null}]}`.
+Each sub-question of the link exactly once; `text` and `confidence` are required for `kind = answer` and cleared otherwise. Returns `201 {"received": [{"response_id", "subquestion_index", "kind"}]}`.
+`404` unknown token, `409` link not `SENT` or already submitted (one submission per link), `422` a statement not confirmed, a sub-question missing or extra, or an empty answer.
+Rows go to the append-only `responses` table (`server/app/db/schema_expert.sql`). `response_id` (for example `R3fa91c20`) is what memo claims cite. The first response moves the case from `AWAITING_APPROVAL` to `COLLECTING`.
