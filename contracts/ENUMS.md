@@ -41,3 +41,7 @@ Response `mode`: `form`, `voice`, `text`. Response `kind`: `answer`, `dont_know`
 ## Added 2026-11-22 (customer approval of invitations)
 
 Approvers: `customer` (approves the invitations of their own case), `dev`, `ananya` (registered team members; there are no operator approval routes any more). `AWAITING_APPROVAL` now means: waiting for the customer to approve the anonymised invitations.
+
+## Added 2026-11-22 (Ananya, stage 7)
+
+Response screen verdicts: `accepted`, `redacted`, `held`, `rejected`. Stage name `s7_response_screen` (runs per response, not in the case job, so it has no `stage.*` events).

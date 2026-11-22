@@ -58,3 +58,11 @@ Next: stage 7 response screen, then coverage and screened responses on the Live 
 Decisions: left out mockup parts with no backend or that break rules: memo tab, coverage meter, held responses, payouts, voice interview, decline / never-contact buttons, editable To address, in-browser mailbox (we use Mailpit), "revised answer replaces this one" (answers are append-only), "autosaved", "reset prototype data". They come back as their stages are built.
 Blocked on: Dev, expert router in `server/app/main.py` (request in `docs/inbox/dev/`).
 Contracts touched: none.
+
+## 2026-11-22 14:38 IST ananya stage7-contracts
+Done: stage 7 routes, `response.screened` event and verdict values appended to `contracts/API.md`, `EVENTS.md`, `ENUMS.md`. Additive only.
+In progress: stage 7 code (next commits).
+Next: see next entries.
+Decisions: `response.screened` carries no text or reason. Held answers are reviewed by team members only (not the customer).
+Blocked on: nothing.
+Contracts touched: API.md, EVENTS.md, ENUMS.md (this commit).

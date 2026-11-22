@@ -60,3 +60,9 @@ The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need
 | `outreach.batch_approved` | `sent`, `dropped`, `blocked`, `failed`, `by` | The customer approved the invitations. One event per batch, after the per-email events below. |
 
 `approval.approved` and `approval.rejected` are still emitted once per email, now with `by: "customer"`. The customer stream carries only `outreach_id` for `approval.*`, `mail.sent`, `mail.blocked` and `mail.failed`.
+
+## Added 2026-11-22 (Ananya, stage 7)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `response.screened` | `response_id`, `subquestion_index`, `verdict`, `by` (`screen` or the team member who reviewed a held answer) | A screening decision. No answer text and no reason, so the customer stream can pass it through unchanged. |

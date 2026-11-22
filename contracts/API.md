@@ -140,3 +140,17 @@ Decision record: `contracts/decisions/2026-11-22-dev-customer-approves-invitatio
 - `POST /customer/cases/{id}/approve-outreach`, body `{"refs": ["E3fa91c20", ...]}` (at least one `ref` from `invites`). Returns `{"sent", "dropped", "blocked", "failed", "state"}` where `state` is `COLLECTING` if at least one email went out, else still `AWAITING_APPROVAL`. `409` if the case is not `AWAITING_APPROVAL` (also on a second click), `422` for an empty list or a `ref` that is not waiting, `404` for an unknown case.
 - Mail still leaves only through the teammate allowlist gate. In this competition every invitation goes to a teammate's inbox (Mailpit); `blocked` counts any address the gate refused and `failed` a mail server error (the invitation then shows `FAILED` with the reason in the operator list).
 - Customer screens must say what happens to the invitations honestly: they are the anonymised text of what the expert receives. Do not show the real recipient.
+
+## Changes 2026-11-22 (Ananya): stage 7 response screen
+Additive. Code: `server/app/stages/s7_response_screen.py`, routes in `server/app/routes/responses.py` (mounted through the expert router). Each submitted answer is screened in the background right after `POST /expert/{token}/responses`.
+
+- Verdicts (latest row per `response_id` in the append-only `response_screens` table): `accepted`, `redacted` (flagged spans replaced by `[redacted]`; the spans are exact quotes, verified in code), `held` (a team member decides), `rejected`. A leak phrase found by the code rule turns a model `accepted` into `held`; an unverifiable model reply is `held`, never `accepted`. `dont_know` and `confidential` answers are `rejected` with that reason and no model call.
+
+### `GET /customer/cases/{id}/responses` (customer-safe)
+`{"coverage": {"<index>": {"received", "pending", "accepted", "redacted", "held", "rejected"}}, "responses": [{"response_id", "ref", "role", "company", "subquestion_index", "verdict": "accepted" | "redacted", "text", "confidence", "mode", "created_at"}]}`. Only accepted answers, and redacted ones with the spans removed. `ref` is `views.expert_ref`. No name, link, address or person id. `404` unknown case.
+
+### `GET /operator/responses?status=&case_id=` (operator only)
+Every response with its latest screen: `{"response_id", "case_id", "ref", "persona_title", "persona_company", "subquestion_index", "kind", "text", "confidence", "mode", "verdict" (or "pending"), "reason", "redacted_text", "flagged_spans", "code_flags", "decided_by", "llm_call_id", "created_at"}`. Full answer text: never on a customer screen.
+
+### `POST /operator/responses/{response_id}/decide`
+Body `{"approver": "dev" | "ananya", "decision": "accept" | "reject"}`. Only for a response whose latest verdict is `held`; adds a new screen row (`accepted` or `rejected`, `decided_by` the team member). The text is never changed. `403` not a team member (the customer cannot review), `404` unknown response, `409` not held, `422` bad decision.
