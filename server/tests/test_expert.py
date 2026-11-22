@@ -24,7 +24,8 @@ def sent(api, smtp):
     client, _ = api
     cid = start(client)
     item = client.get("/approvals", params={"case_id": cid}).json()[0]
-    assert client.post(f"/approvals/{item['id']}/approve", json={"approver": "ananya"}).json()["status"] == "SENT"
+    refs = [i["ref"] for i in client.get(f"/customer/cases/{cid}").json()["invites"]]
+    assert client.post(f"/customer/cases/{cid}/approve-outreach", json={"refs": refs}).json()["sent"] == 1
     return client, cid, _token(item["id"]), item["subquestion_indices"]
 
 
