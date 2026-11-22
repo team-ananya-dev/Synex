@@ -111,3 +111,26 @@ def test_team_member_reviews_a_held_answer_without_editing_it(api, sent):
 
 def test_redact_helper_tolerates_whitespace():
     assert s7.redact("a  b\nc d", ["b c"]) == "a  [redacted] d"
+
+
+def test_screening_twice_costs_one_model_call_and_one_event(api, sent):
+    client, cid, token, indices = sent
+    fake = script(api, {"verdict": "accepted", "reason": "fine", "flagged_spans": []})
+    rids = submit(client, token, indices, ["Teams grew steadily over two years."] * len(indices))
+    calls = fake.calls
+    s7.screen_responses(rids)                                              # a second run, as after a retry
+    assert fake.calls == calls
+    assert len([e for e in db_events(cid) if e["type"] == "response.screened"]) == len(indices)
+
+
+def test_sweep_screens_answers_whose_job_was_lost(api, sent, monkeypatch):
+    client, cid, token, indices = sent
+    script(api, {"verdict": "accepted", "reason": "fine", "flagged_spans": []})
+    real = s7.screen_responses
+    monkeypatch.setattr(s7, "screen_responses", lambda ids: None)          # the server "died" before screening
+    rids = submit(client, token, indices, ["Teams grew steadily over two years."] * len(indices))
+    monkeypatch.setattr(s7, "screen_responses", real)
+    assert all(latest(r) is None for r in rids)
+    assert s7.sweep_unscreened() == len(indices)
+    assert all(latest(r)["verdict"] == "accepted" for r in rids)
+    assert s7.sweep_unscreened() == 0                                      # nothing left to do

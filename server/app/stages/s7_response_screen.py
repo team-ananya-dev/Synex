@@ -132,7 +132,7 @@ def screen_responses(response_ids: list[str]) -> None:
     try:
         for rid in response_ids:
             row = conn.execute("SELECT * FROM responses WHERE response_id=?", (rid,)).fetchone()
-            if row is None:
+            if row is None or latest(conn, rid) is not None:  # already screened: no second model call, no second event
                 continue
             try:
                 d = decide(conn, row)
@@ -142,6 +142,19 @@ def screen_responses(response_ids: list[str]) -> None:
             record(conn, row, d, "screen")
     finally:
         conn.close()
+
+
+def sweep_unscreened() -> int:
+    """After a restart: screen every response that has no screen row (its background job died with the server)."""
+    conn = db.connect()
+    try:
+        ids = [r["response_id"] for r in conn.execute(
+            "SELECT response_id FROM responses WHERE response_id NOT IN (SELECT response_id FROM response_screens) ORDER BY id")]
+    finally:
+        conn.close()
+    if ids:
+        screen_responses(ids)
+    return len(ids)
 
 
 def latest(conn, response_id: str):

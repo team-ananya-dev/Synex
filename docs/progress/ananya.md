@@ -154,3 +154,11 @@ Next: push; customer "Review invitations" step; stage 8 memo.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:27 IST ananya s7-idempotent
+Done: Dev's request `docs/inbox/ananya/2026-11-22-dev-s7-idempotency.md`. `server/app/stages/s7_response_screen.py`: `screen_responses` skips any response that already has a screen row (no second model call or event); new `sweep_unscreened()` screens every response with no screen row. `server/app/main.py` (shared, four additive lines): a lifespan hook runs the sweep in a background thread at startup, so answers whose job died with a restart are screened. Two tests added; 103 pass.
+In progress: nothing.
+Next: Result tab on the case page against `contracts/2026-11-22-dev-results.md`; then a full manual run.
+Decisions: Dev owns the stage 8 result (`s8_result.py`, `routes/result.py`); I will not build a second one. The large-model price request is no longer needed.
+Blocked on: nothing.
+Contracts touched: none.
