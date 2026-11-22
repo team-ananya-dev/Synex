@@ -7,7 +7,7 @@ from app.core import db, llm
 from app.stages import s3_sourcer, s4_people_screen, s5_ranker
 
 TODAY = date(2026, 11, 22)
-PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1}
+PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1, "competitor_domains": ["rival.com", "instamart.in"]}
 
 
 def cand(**kw):
@@ -32,6 +32,42 @@ def test_screen_fails_each_rule(kw, rule):
     s = s4_people_screen.screen(cand(**kw), TODAY, PARAMS)
     assert s["verdict"] == "fail"
     assert [r["rule"] for r in s["results"] if not r["passed"]] == [rule]
+
+
+def role(**kw):
+    return {"company_id": "9", "name": "Rival", "website": "https://www.rival.com/", "title": "Dispatcher", "seniority": "Entry Level", **kw}
+
+
+def test_rule4_sensitive_role_at_competitor_fails():
+    s = s4_people_screen.screen(cand(current_roles=[role(title="Operations Manager", seniority="Director")]), TODAY, PARAMS)
+    assert s["verdict"] == "fail"
+    assert [r["rule"] for r in s["results"] if not r["passed"]] == ["rule_competitor"]
+    assert "direct competitor" in s["results"][4]["reason"]
+
+
+def test_rule4_strategic_title_counts_as_sensitive_even_at_low_seniority():
+    c = cand(current_roles=[role(title="Pricing Analyst", seniority="Entry Level")])
+    assert s4_people_screen.screen(c, TODAY, PARAMS)["verdict"] == "fail"
+
+
+def test_rule4_lesser_role_at_competitor_is_a_review_flag():
+    s = s4_people_screen.screen(cand(current_roles=[role()]), TODAY, PARAMS)
+    assert s["verdict"] == "review" and s["results"][-1]["flag"] and "non-sensitive" in s["results"][-1]["reason"]
+
+
+def test_rule4_matches_employer_by_name_when_domains_differ():
+    c = cand(current_roles=[role(name="Instamart", website="https://www.swiggy.com/", title="Store Manager", seniority="Experienced Manager")])
+    assert s4_people_screen.screen(c, TODAY, PARAMS)["verdict"] == "fail"
+
+
+def test_rule4_unrelated_employer_passes():
+    c = cand(current_roles=[role(name="Acme Corp", website="https://acme.com")])
+    assert s4_people_screen.screen(c, TODAY, PARAMS)["verdict"] == "pass"
+
+
+def test_rule4_unavailable_competitor_list_is_never_a_silent_pass():
+    s = s4_people_screen.screen(cand(), TODAY, {**PARAMS, "competitor_domains": None})
+    assert s["verdict"] == "review" and "could not be fetched" in s["results"][-1]["reason"]
 
 
 def test_sensitive_role_is_flagged_not_failed():

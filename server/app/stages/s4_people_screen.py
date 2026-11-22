@@ -1,11 +1,12 @@
 """Stage 4: fixed compliance rules in plain code. One function per rule; each returns
-(passed, reason). Rules 4 (competitor conflict) and 7 (closed period) need company data
-the sourcer does not fetch yet and are not implemented here."""
+(passed, reason). Rule 7 (closed period) needs listing and earnings data the sourcer does not fetch yet and is
+not implemented here."""
 import re
 from datetime import date
 
 from ..crustdata.people import months_before
 
+PARTNER_NAMES: set[str] = set()  # listed partners (rule 4), lower case; empty until the team fills it
 RESTRICTED_NAMES: set[str] = set()  # hard-coded restricted list (rule 5); empty until the team fills it
 
 SENSITIVE = re.compile(
@@ -44,13 +45,59 @@ def rule_min_tenure(c, today, p):
     return True, f"{t} months at the company"
 
 
+SENIOR_LEVELS = {"experienced manager", "director", "vice president", "cxo", "owner / partner"}
+STRATEGIC = re.compile(r"\b(head|strategy|strategic|pricing|product|category|procurement|sourcing|business development|"
+                       r"growth|finance|analytics|chief)\b", re.I)
+
+
+def _host(url: str | None) -> str:
+    u = (url or "").strip().lower()
+    for prefix in ("https://", "http://"):
+        if u.startswith(prefix):
+            u = u[len(prefix):]
+    u = u.split("/")[0]
+    return u[4:] if u.startswith("www.") else u
+
+
+def _squash(text: str | None) -> str:
+    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
+def competitor_roles(c: dict, competitor_hosts: list[str]) -> list[dict]:
+    """Current roles at a direct competitor or listed partner. A role matches when the employer's website
+    is a competitor domain, or its name equals a competitor's domain name (Instamart vs instamart.in)."""
+    labels = {h.split(".")[0] for h in competitor_hosts}
+    out = []
+    for r in c.get("current_roles", []):
+        name = _squash(r["name"])
+        if _host(r["website"]) in competitor_hosts or (name and name in labels) or (r["name"] or "").lower() in PARTNER_NAMES:
+            out.append(r)
+    return out
+
+
+def is_sensitive_role(r: dict) -> bool:
+    return (r["seniority"] or "").lower() in SENIOR_LEVELS or bool(r["title"] and (STRATEGIC.search(r["title"]) or SENSITIVE.search(r["title"])))
+
+
+def rule_competitor(c, today, p):
+    """Rule 4. Fails on a sensitive current role at a direct competitor. Any other role at a competitor,
+    or a competitor list that could not be fetched, is a manual review flag (see screen)."""
+    hosts = p.get("competitor_domains")
+    if hosts is None:
+        return True, "competitor list unavailable, not checked"
+    bad = [r for r in competitor_roles(c, hosts) if is_sensitive_role(r)]
+    if bad:
+        return False, f"now {bad[0]['title']!r} ({bad[0]['seniority'] or 'level unknown'}) at {bad[0]['name']}, a direct competitor"
+    return True, "no sensitive current role at a direct competitor"
+
+
 def rule_restricted(c, today, p):
     if c["name"].lower() in RESTRICTED_NAMES:
         return False, "on the restricted list"
     return True, "not on the restricted list"
 
 
-FAIL_RULES = [rule_not_current, rule_cooling_off, rule_freshness, rule_min_tenure, rule_restricted]
+FAIL_RULES = [rule_not_current, rule_cooling_off, rule_freshness, rule_min_tenure, rule_competitor, rule_restricted]
 
 
 def screen(candidate: dict, today: date, params: dict) -> dict:
@@ -60,6 +107,17 @@ def screen(candidate: dict, today: date, params: dict) -> dict:
         ok, reason = rule(candidate, today, params)
         results.append({"rule": rule.__name__, "passed": ok, "reason": reason})
     verdict = "pass" if all(r["passed"] for r in results) else "fail"
+    if verdict == "pass":  # rule 4 flags: a lesser role at a competitor, or no competitor list to check against
+        hosts = params.get("competitor_domains")
+        if hosts is None:
+            results.append({"rule": "rule_competitor", "passed": True, "flag": True,
+                            "reason": "competitor list could not be fetched: manual review"})
+            verdict = "review"
+        elif competitor_roles(candidate, hosts):
+            r = competitor_roles(candidate, hosts)[0]
+            results.append({"rule": "rule_competitor", "passed": True, "flag": True,
+                            "reason": f"now {r['title']!r} at {r['name']}, a direct competitor, in a non-sensitive role: manual review"})
+            verdict = "review"
     if verdict == "pass" and candidate["title"] and SENSITIVE.search(candidate["title"]):
         results.append({"rule": "rule_sensitive_role", "passed": True, "flag": True,
                         "reason": f"title {candidate['title']!r} is a sensitive role: manual review"})

@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone
 
 from ..core import config, db, llm
 from ..core.events import append_event
+from ..crustdata import company as company_api
 from ..crustdata import people as people_api
 from ..crustdata.client import CrustdataClient
 from ..stages import s1_question_screen, s2_decomposer, s3_sourcer, s4_people_screen, s5_ranker
@@ -93,6 +94,19 @@ def _run(conn, case_id: str) -> None:
     limit = config.dev_max_subquestions()
     work = subs if limit is None else subs[:limit]
 
+    competitor_memo: dict[int, tuple[list[str] | None, str | None]] = {}
+
+    def competitors_of(company_id: int):
+        """Competitor domains of a target company, fetched once per case. None means the lookup failed."""
+        if company_id not in competitor_memo:
+            try:
+                domains, call_id = company_api.competitors(client, company_id)
+                competitor_memo[company_id] = (domains, call_id)
+            except Exception as e:
+                append_event(conn, case_id, "competitor.lookup_failed", {"company_id": company_id, "error": f"{type(e).__name__}: {e}"})
+                competitor_memo[company_id] = (None, None)
+        return competitor_memo[company_id]
+
     def source_all():
         out = {}
         for sq in work:
@@ -106,7 +120,9 @@ def _run(conn, case_id: str) -> None:
                     continue
                 found, meta, call_id = s3_sourcer.source(
                     conn, client, chosen["company_id"], today, **params, limit=25, query=f"{sq['expertise']}: {sq['text']}")
+                comp_domains, comp_call = competitors_of(chosen["company_id"])
                 companies.append({"asked": target["name"], "basis": target["basis"], "resolved": True, "chosen": chosen,
+                                  "competitor_domains": comp_domains, "competitors_call_id": comp_call,
                                   "alternatives": len(cands) - 1, "pick": pick, "total_matches": meta["total_count"],
                                   "search_call_id": call_id})
                 for p in found:
@@ -118,8 +134,15 @@ def _run(conn, case_id: str) -> None:
 
     sourced = run_stage(conn, case_id, "s3_sourcer", source_all)
 
-    screens = run_stage(conn, case_id, "s4_people_screen", lambda: {
-        idx: [s4_people_screen.screen(p, today, params) for p in v["candidates"]] for idx, v in sourced.items()})
+    def screen_all():
+        out = {}
+        for idx, v in sourced.items():
+            by_company = {c["chosen"]["company_id"]: c["competitor_domains"] for c in v["companies"] if c["resolved"]}
+            out[idx] = [s4_people_screen.screen(p, today, {**params, "competitor_domains": by_company.get(p["company_id"])})
+                        for p in v["candidates"]]
+        return out
+
+    screens = run_stage(conn, case_id, "s4_people_screen", screen_all)
 
     def rank_all():
         out = {}

@@ -69,6 +69,8 @@ def normalise(profile: dict, company_id: int, call_id: str, today: date) -> dict
         "tenure_months": _months_between(role["start_date"], role["end_date"]) if role.get("start_date") else None,
         "still_at_company": any(c.get("crustdata_company_id") == company_id for c in current),
         "current_employers": [c.get("name") for c in current],
+        "current_roles": [{"company_id": c.get("crustdata_company_id"), "name": c.get("name"), "website": c.get("company_website"),
+                           "title": c.get("title"), "seniority": c.get("seniority_level")} for c in current],
         "crustdata_fit": profile.get("fit"),
         "record_updated_at": (profile.get("metadata") or {}).get("updated_at"),
         "source_call_id": call_id,

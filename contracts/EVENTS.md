@@ -16,3 +16,9 @@ Every event is a row in the hash-chained `events` table and is sent live on `GET
 | `job.paused` | `reason` | The job reached the end of what is built. The stream closes after this event. |
 
 The stream also closes after a `case.state` of `REFUSED` or `FAILED`. Events carry no secrets. `stage.done` results include candidate details, which are real people's profile data: show them in the app, never put them in the README or a screenshot in the repo.
+
+## Added 2026-11-22
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `competitor.lookup_failed` | `company_id`, `error` | The competitor list for a target company could not be fetched. People from that company are marked `review`. |

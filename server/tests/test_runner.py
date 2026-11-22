@@ -41,14 +41,16 @@ class FakeAnthropic:
         return SimpleNamespace(content=[block], usage=SimpleNamespace(input_tokens=100, output_tokens=20))
 
 
-def person(pid, company_id, current=False):
+def person(pid, company_id, current=False, rival=None):
     return {"crustdata_person_id": pid, "basic_profile": {"name": f"P{pid}", "headline": "h"}, "metadata": {},
             "social_handles": {"professional_network_identifier": {"profile_url": f"https://example.test/in/{pid}"}},
             "experience": {"employment_details": {
                 "past": [{"crustdata_company_id": company_id, "title": "Operations Manager",
                           "start_date": months_before(TODAY, 30).isoformat() + "T00:00:00",
                           "end_date": months_before(TODAY, 10).isoformat() + "T00:00:00"}],
-                "current": [{"crustdata_company_id": company_id, "name": "Acme"}] if current else []}}}
+                "current": ([{"crustdata_company_id": company_id, "name": "Acme"}] if current else [])
+                           + ([{"crustdata_company_id": 99, "name": "Rival", "company_website": "https://rival.com", "title": "Head of Ops",
+                                "seniority_level": "Director"}] if rival else [])}}}
 
 
 def crustdata(request):
@@ -56,8 +58,11 @@ def crustdata(request):
     if request.url.path == "/company/identify":
         match = lambda i, n: {"confidence_score": 1.0, "company_data": {"basic_info": {"crustdata_company_id": i, "name": n}}}
         return httpx.Response(200, json=[{"matches": [match(11, "Acme"), match(12, "Acme Other")]}], headers={"X-Credits-Used": "0.2"})
+    if request.url.path == "/company/enrich":
+        comp = {"organic_seo": ["rival.com", " other.com"], "paid_seo": [], "all_domains": ["noise.com"]}
+        return httpx.Response(200, json=[{"matches": [{"company_data": {"competitors": comp}}]}], headers={"X-Credits-Used": "2.0"})
     if request.url.path == "/person/search":
-        return httpx.Response(200, json={"profiles": [{**person(1, 11), "fit": "strong"}, person(2, 11, current=True)], "total_count": 2},
+        return httpx.Response(200, json={"profiles": [{**person(1, 11), "fit": "strong"}, person(2, 11, current=True), person(3, 11, rival=True)], "total_count": 2},
                               headers={"X-Credits-Used": "1.0"})
     if request.url.path == "/person/enrich":
         body = json.loads(request.content)
@@ -109,7 +114,10 @@ def test_full_run_streams_stages_and_ends_paused(api):
     assert final["enriched_person_ids"] == [1]
     assert final["ranked"][0]["role_description"] == "Ran rider allocation for 40 stores"
     s4 = view["stages"]["s4_people_screen"]["1"]
-    assert {s["person_id"]: s["verdict"] for s in s4} == {1: "pass", 2: "fail"}
+    assert {s["person_id"]: s["verdict"] for s in s4} == {1: "pass", 2: "fail", 3: "fail"}
+    assert any("direct competitor" in r["reason"] for r in next(s for s in s4 if s["person_id"] == 3)["results"])
+    company = view["stages"]["s3_sourcer"]["1"]["companies"][0]
+    assert company["competitor_domains"] == ["other.com", "rival.com"] and company["competitors_call_id"]
     assert view["cost"]["crustdata_credits"] > 0 and view["cost"]["model_usd"] > 0
 
 
@@ -122,6 +130,21 @@ def test_search_sends_relevance_query_and_hard_filters(api):
     fields = [c["field"] for c in body["filters"]["conditions"]]
     assert "experience.employment_details.current.company_id" in fields  # current employees excluded in the query
     assert body["limit"] == 5  # dev limit
+
+
+def test_failed_competitor_lookup_gives_review_not_a_silent_pass(api, monkeypatch):
+    client, _ = api
+
+    def handler(request):
+        return httpx.Response(500, text="down") if request.url.path == "/company/enrich" else crustdata(request)
+
+    monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(handler))
+    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    view = client.get(f"/cases/{cid}").json()
+    assert view["state"] == "SOURCING"
+    s4 = {s["person_id"]: s["verdict"] for s in view["stages"]["s4_people_screen"]["1"]}
+    assert s4[1] == "review" and s4[3] == "review"
+    assert any(e["type"] == "competitor.lookup_failed" for e in events(client, cid))
 
 
 def test_dev_limit_runs_two_subquestions_only(api):
