@@ -11,7 +11,8 @@ from datetime import date, datetime, timezone
 
 from ..core import config, db, llm
 from ..core.events import append_event
-from ..crustdata.client import CreditCapExceeded, CrustdataClient
+from ..crustdata import people as people_api
+from ..crustdata.client import CrustdataClient
 from ..stages import s1_question_screen, s2_decomposer, s3_sourcer, s4_people_screen, s5_ranker
 
 DEFAULT_PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1}
@@ -104,7 +105,7 @@ def _run(conn, case_id: str) -> None:
                     companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False})
                     continue
                 found, meta, call_id = s3_sourcer.source(
-                    conn, client, chosen["company_id"], today, **params, limit=25, title_any=sq["title_keywords"])
+                    conn, client, chosen["company_id"], today, **params, limit=25, query=f"{sq['expertise']}: {sq['text']}")
                 companies.append({"asked": target["name"], "basis": target["basis"], "resolved": True, "chosen": chosen,
                                   "alternatives": len(cands) - 1, "pick": pick, "total_matches": meta["total_count"],
                                   "search_call_id": call_id})
@@ -125,10 +126,32 @@ def _run(conn, case_id: str) -> None:
         for sq in work:
             idx = str(sq["index"])
             verdict = {s["person_id"]: s["verdict"] for s in screens[idx]}
-            kept = [p for p in sourced[idx]["candidates"] if verdict[p["person_id"]] != "fail"]
-            ranked, call_id = s5_ranker.rank(conn, kept, sq["text"], sq["expertise"], case_id)
-            out[idx] = {"ranked": [{**r, "verdict": verdict[r["person_id"]]} for r in ranked], "llm_call_id": call_id}
+            kept = [{**p, "verdict": verdict[p["person_id"]]} for p in sourced[idx]["candidates"]
+                    if verdict[p["person_id"]] != "fail"]
+            result, call_id = s5_ranker.rank(conn, kept, sq["text"], sq["expertise"], case_id)
+            out[idx] = {**result, "llm_call_id": call_id}
         return out
 
-    run_stage(conn, case_id, "s5_ranker", rank_all)
+    ranked = run_stage(conn, case_id, "s5_ranker", rank_all)
+
+    def enrich_all():
+        """Fetch the full profile of the top few per sub-question and re-rank them on role descriptions and skills."""
+        out = {}
+        for sq in work:
+            idx = str(sq["index"])
+            first = ranked[idx]["ranked"]
+            top, rest = first[: config.enrich_top()], first[config.enrich_top():]
+            people, enrich_call = people_api.enrich_people(client, [p["profile_url"] for p in top if p["profile_url"]])
+            enriched = [s5_ranker.with_profile(p, people[p["profile_url"]], p["company_id"])
+                        if p["profile_url"] in people else p for p in top]
+            result, llm_call = s5_ranker.rank(conn, enriched, sq["text"], sq["expertise"], case_id)
+            out[idx] = {
+                "ranked": sorted(result["ranked"] + rest, key=lambda x: -x["score"]),
+                "excluded": ranked[idx]["excluded"] + result["excluded"],
+                "enriched_person_ids": [p["person_id"] for p in enriched if p.get("role_description") is not None],
+                "enrich_call_id": enrich_call, "llm_call_id": llm_call,
+            }
+        return out
+
+    run_stage(conn, case_id, "s5b_enrich_rerank", enrich_all)
     append_event(conn, case_id, "job.paused", {"reason": "stage 6 (outreach) is not implemented yet"})

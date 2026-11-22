@@ -21,3 +21,7 @@ Today the job runner reaches `PLANNED` and `SOURCING`, plus `REFUSED` and `FAILE
 | People screen (`s4`) | `pass`, `review` (manual review flag), `fail` |
 | Target company basis (`s2`) | `named` (the question mentions it), `inferred` (the model suggested it) |
 | Company pick method (`s3`) | `only_match`, `model` |
+
+## Added 2026-11-22
+
+Stage name `s5b_enrich_rerank` (after `s5_ranker`). Fit labels in ranked items: `strong`, `partial` (`weak` is never on the panel).

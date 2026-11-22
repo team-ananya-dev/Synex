@@ -53,3 +53,8 @@ def dev_max_subquestions() -> int | None:
 def max_companies_per_subquestion() -> int:
     """Companies searched per sub-question. 3 in demo mode to bound credits, 1 while developing."""
     return 3 if demo_mode() else int(os.environ.get("SYNEX_DEV_COMPANIES", "1"))
+
+
+def enrich_top() -> int:
+    """People per sub-question whose full profile is fetched (1 credit each). 5 in demo mode, 3 while developing."""
+    return 5 if demo_mode() else int(os.environ.get("SYNEX_DEV_ENRICH", "3"))

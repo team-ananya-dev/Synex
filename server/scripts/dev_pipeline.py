@@ -18,7 +18,6 @@ ap.add_argument("company")
 ap.add_argument("sub_question")
 ap.add_argument("expertise")
 ap.add_argument("--context", default="")
-ap.add_argument("--title", action="append", help="title phrase; repeat for several")
 ap.add_argument("--min-left", type=int, default=6)
 ap.add_argument("--max-left", type=int, default=24)
 ap.add_argument("--min-years", type=int, default=1)
@@ -32,7 +31,7 @@ client = CrustdataClient(conn, case_id=case)
 chosen, cands, pick = s3_sourcer.resolve_company(conn, client, a.company, a.context or a.sub_question, case)
 print(f"company: {chosen['name']} ({chosen['domain']}, id {chosen['company_id']}, size {chosen['size']}) "
       f"picked by {pick['method']}; {len(cands)} candidates; {pick.get('reason', '')}")
-people, meta, call_id = s3_sourcer.source(conn, client, chosen["company_id"], today, **params, limit=25, title_any=a.title)
+people, meta, call_id = s3_sourcer.source(conn, client, chosen["company_id"], today, **params, limit=25, query=f"{a.expertise}: {a.sub_question}")
 print(f"search call {call_id}: {meta['total_count']} match, {len(people)} fetched")
 
 screens = {p["person_id"]: s4_people_screen.screen(p, today, params) for p in people}
@@ -42,8 +41,10 @@ for p in people:
     if s["verdict"] == "fail":
         why = "; ".join(r["reason"] for r in s["results"] if not r["passed"])
         print(f"  FAIL {p['name']}: {why}")
-ranked, rank_call = s5_ranker.rank(conn, kept, a.sub_question, a.expertise, case)
-for r in ranked:
-    flag = " [review]" if screens[r["person_id"]]["verdict"] == "review" else ""
-    print(f"{r['score']:3d}  {r['name']} | {r['title']} | {r['tenure_months']}m | left {r['end_date']}{flag}\n       {r['reason']}")
+result, rank_call = s5_ranker.rank(conn, [{**p, "verdict": screens[p["person_id"]]["verdict"]} for p in kept], a.sub_question, a.expertise, case)
+for r in result["ranked"]:
+    flag = " [review]" if r["verdict"] == "review" else ""
+    print(f"{r['score']:3d} {r['fit']:7s} {r['name']} | {r['title']} | {r['tenure_months']}m | left {r['end_date']}{flag}\n       {r['reason']}\n       evidence: {r['evidence']}")
+for e in result["excluded"]:
+    print(f"  excluded {e['score']:3d} {e['name']} | {e['title']}: {e['why']}")
 print(f"credits spent: {client.credits_spent():.2f} | model spend: ${llm.spent_usd(conn):.4f}")

@@ -35,13 +35,15 @@ class FakeAnthropic:
             reply = {"company_id": int(re.search(r"id (\d+)", user).group(1)), "reason": "fits", "confident": True}
         else:
             ids = [int(i) for i in re.findall(r"person_id (\d+)", user)]
-            reply = {"ranked": [{"person_id": i, "score": 60 + i, "reason": "ops role"} for i in ids]}
+            reply = {"ranked": [{"person_id": i, "score": 60 + i, "evidence": ["Operations Manager"], "reason": "ops role",
+                                 "data_conflict": ""} for i in ids]}
         block = SimpleNamespace(type="tool_use", input=reply, id="t")
         return SimpleNamespace(content=[block], usage=SimpleNamespace(input_tokens=100, output_tokens=20))
 
 
 def person(pid, company_id, current=False):
     return {"crustdata_person_id": pid, "basic_profile": {"name": f"P{pid}", "headline": "h"}, "metadata": {},
+            "social_handles": {"professional_network_identifier": {"profile_url": f"https://example.test/in/{pid}"}},
             "experience": {"employment_details": {
                 "past": [{"crustdata_company_id": company_id, "title": "Operations Manager",
                           "start_date": months_before(TODAY, 30).isoformat() + "T00:00:00",
@@ -50,13 +52,24 @@ def person(pid, company_id, current=False):
 
 
 def crustdata(request):
+    SEEN.append((request.url.path, json.loads(request.content) if request.content else None))
     if request.url.path == "/company/identify":
         match = lambda i, n: {"confidence_score": 1.0, "company_data": {"basic_info": {"crustdata_company_id": i, "name": n}}}
         return httpx.Response(200, json=[{"matches": [match(11, "Acme"), match(12, "Acme Other")]}], headers={"X-Credits-Used": "0.2"})
     if request.url.path == "/person/search":
-        return httpx.Response(200, json={"profiles": [person(1, 11), person(2, 11, current=True)], "total_count": 2},
+        return httpx.Response(200, json={"profiles": [{**person(1, 11), "fit": "strong"}, person(2, 11, current=True)], "total_count": 2},
                               headers={"X-Credits-Used": "1.0"})
+    if request.url.path == "/person/enrich":
+        body = json.loads(request.content)
+        url = body["professional_network_profile_urls"][0]
+        data = person(1, 11)
+        data["experience"]["employment_details"]["past"][0]["description"] = "Ran rider allocation for 40 stores"
+        data["skills"] = {"professional_network_skills": ["Logistics"]}
+        return httpx.Response(200, json=[{"matched_on": url, "matches": [{"person_data": data}]}], headers={"X-Credits-Used": "1.0"})
     return httpx.Response(404)
+
+
+SEEN = []
 
 
 @pytest.fixture
@@ -82,7 +95,7 @@ def test_full_run_streams_stages_and_ends_paused(api):
     cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
     evs = events(client, cid)
     done = [e["stage"] for e in evs if e["type"] == "stage.done"]
-    assert done == ["s1_question_screen", "s2_decomposer", "s3_sourcer", "s4_people_screen", "s5_ranker"]
+    assert done == ["s1_question_screen", "s2_decomposer", "s3_sourcer", "s4_people_screen", "s5_ranker", "s5b_enrich_rerank"]
     assert evs[-1]["type"] == "job.paused"
     states = [e["state"] for e in evs if e["type"] == "case.state"]
     assert states == ["PLANNED", "SOURCING"]
@@ -91,9 +104,24 @@ def test_full_run_streams_stages_and_ends_paused(api):
     assert view["state"] == "SOURCING"
     ranked = view["stages"]["s5_ranker"]["1"]["ranked"]
     assert [r["person_id"] for r in ranked] == [1]  # person 2 still works at Acme and failed the screen
+    assert ranked[0]["evidence"] == ["Operations Manager"] and ranked[0]["crustdata_fit"] == "strong"
+    final = view["stages"]["s5b_enrich_rerank"]["1"]
+    assert final["enriched_person_ids"] == [1]
+    assert final["ranked"][0]["role_description"] == "Ran rider allocation for 40 stores"
     s4 = view["stages"]["s4_people_screen"]["1"]
     assert {s["person_id"]: s["verdict"] for s in s4} == {1: "pass", 2: "fail"}
     assert view["cost"]["crustdata_credits"] > 0 and view["cost"]["model_usd"] > 0
+
+
+def test_search_sends_relevance_query_and_hard_filters(api):
+    client, _ = api
+    SEEN.clear()
+    client.post("/cases", json={"question": "What does Acme do?"})
+    body = next(b for path, b in SEEN if path == "/person/search")
+    assert body["mode"] == "exact" and body["search"]["query"].startswith("operations: ")
+    fields = [c["field"] for c in body["filters"]["conditions"]]
+    assert "experience.employment_details.current.company_id" in fields  # current employees excluded in the query
+    assert body["limit"] == 5  # dev limit
 
 
 def test_dev_limit_runs_two_subquestions_only(api):

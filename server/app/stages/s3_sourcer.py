@@ -69,12 +69,13 @@ def normalise(profile: dict, company_id: int, call_id: str, today: date) -> dict
         "tenure_months": _months_between(role["start_date"], role["end_date"]) if role.get("start_date") else None,
         "still_at_company": any(c.get("crustdata_company_id") == company_id for c in current),
         "current_employers": [c.get("name") for c in current],
+        "crustdata_fit": profile.get("fit"),
         "record_updated_at": (profile.get("metadata") or {}).get("updated_at"),
         "source_call_id": call_id,
     }
 
 
 def source(conn, client, company_id: int, today: date, min_left: int, max_left: int, min_years: int, limit: int = 25,
-           title_any: list[str] | None = None):
-    profiles, meta, call_id = people_api.search_former_employees(client, company_id, today, min_left, max_left, min_years, limit, title_any)
+           title_any: list[str] | None = None, query: str | None = None):
+    profiles, meta, call_id = people_api.search_former_employees(client, company_id, today, min_left, max_left, min_years, limit, title_any, query)
     return [normalise(p, company_id, call_id, today) for p in profiles], meta, call_id
