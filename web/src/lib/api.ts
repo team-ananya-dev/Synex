@@ -190,6 +190,26 @@ export type Submission = {
   answers: { index: number; kind: AnswerKind; text: string; confidence: Confidence | null }[];
 };
 
+// ---- screened responses (stage 7) ----
+
+export type ScreenVerdict = "accepted" | "redacted" | "held" | "rejected";
+export type Coverage = Record<string, { received: number; pending: number } & Record<ScreenVerdict, number>>;
+
+// GET /customer/cases/{id}/responses: only accepted and redacted answers, under an anonymous ref.
+export type ScreenedResponse = {
+  response_id: string; ref: string; role: string | null; company: string | null; subquestion_index: number;
+  verdict: "accepted" | "redacted"; text: string; confidence: Confidence | null; mode: string; created_at: string;
+};
+export type CustomerResponses = { coverage: Coverage; responses: ScreenedResponse[] };
+
+// GET /operator/responses: operator only, full text and the screen's reasoning.
+export type OperatorResponse = {
+  response_id: string; case_id: string; ref: string; persona_title: string | null; persona_company: string | null;
+  subquestion_index: number; kind: AnswerKind; text: string; confidence: Confidence | null; mode: string;
+  verdict: ScreenVerdict | "pending"; reason: string | null; redacted_text: string | null; flagged_spans: string[];
+  code_flags: string[]; decided_by: string | null; llm_call_id: string | null; created_at: string;
+};
+
 // ---- audit trail and cost log (operator) ----
 
 export type AuditEvent = {
@@ -251,6 +271,16 @@ export const api = {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
     return request<Approval[]>(`/approvals${q.size ? `?${q}` : ""}`);
   },
+  // screened responses
+  customerResponses: (caseId: string) => request<CustomerResponses>(`/customer/cases/${caseId}/responses`),
+  operatorResponses: (filters: { status?: string; case_id?: string } = {}) => {
+    const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
+    return request<OperatorResponse[]>(`/operator/responses${q.size ? `?${q}` : ""}`);
+  },
+  reviewHeld: (responseId: string, approver: Approver, decision: "accept" | "reject") =>
+    request<{ response_id: string; verdict: ScreenVerdict; decided_by: string }>(
+      `/operator/responses/${responseId}/decide`, { method: "POST", body: JSON.stringify({ approver, decision }) },
+    ),
   // audit trail and cost log
   auditEvents: (filters: { case_id?: string; after?: number; limit?: number } = {}) => {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
@@ -265,8 +295,6 @@ export const api = {
     request<{ received: { response_id: string; subquestion_index: number; kind: AnswerKind }[] }>(
       `/expert/${token}/responses`, { method: "POST", body: JSON.stringify(body) },
     ),
-  decide: (id: number, decision: "approve" | "reject", approver: Approver) =>
-    request<Approval>(`/approvals/${id}/${decision}`, { method: "POST", body: JSON.stringify({ approver }) }),
 };
 
 export type Audience = "customer" | "operator";

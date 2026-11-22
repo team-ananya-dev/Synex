@@ -74,3 +74,11 @@ Next: web Live tab and operator held queue (next commit); then customer "Review 
 Decisions: held answers are reviewed by team members only; a review adds a row, never edits text.
 Blocked on: Dev, large model price for stage 8.
 Contracts touched: previous commit.
+
+## 2026-11-22 14:38 IST ananya stage7-web
+Done: Live tab coverage (accepted answers against a target of 2 per sub-question) and screened answers with anonymous refs (`web/src/app/(main)/cases/[id]/CaseView.tsx`). Operator page `web/src/app/(main)/operator/approvals/page.tsx` is now "Operator queue": held answers with Accept / Reject, plus a read-only invitation log (Dev removed the per-email approve and reject routes). Nav badge counts held answers. Fixed: the live stream did not listen for `response.*` events.
+In progress: nothing.
+Next: customer "Review invitations" step; stage 8.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.

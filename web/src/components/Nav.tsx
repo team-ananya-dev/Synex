@@ -10,7 +10,8 @@ export function Nav() {
   const [pending, setPending] = useState(0);
 
   useEffect(() => {
-    const load = () => api.listApprovals({ status: "DRAFTED" }).then((r) => setPending(r.length)).catch(() => {});
+    // held answers waiting for a team member
+    const load = () => api.operatorResponses({ status: "held" }).then((r) => setPending(r.length)).catch(() => {});
     load();
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
@@ -24,7 +25,7 @@ export function Nav() {
       <Link href="/" className={color(path === "/" || path.startsWith("/cases"))}>Ask</Link>
       <span className="ml-auto text-[11px] uppercase tracking-[.06em] text-zinc-500">Operator</span>
       <Link href="/operator/approvals" className={`flex items-center gap-1.5 ${color(path.startsWith("/operator/approvals"))}`}>
-        Approval queue
+        Operator queue
         {pending > 0 && (
           <span className="rounded-full bg-amber-950 px-[7px] text-[11px] font-medium text-amber-300">{pending}</span>
         )}

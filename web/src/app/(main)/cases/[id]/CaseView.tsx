@@ -5,7 +5,8 @@
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
-  api, type CaseCosts, type CustomerCase, type ExpertCard, type OutreachStatus, type SubQuestion, type SynexEvent,
+  api, type CaseCosts, type CustomerCase, type CustomerResponses, type ExpertCard, type OutreachStatus, type SubQuestion,
+  type SynexEvent,
 } from "@/lib/api";
 import { useCaseEvents } from "@/lib/useCaseEvents";
 import { Pill, SimulatedTag, StateBadge, TONE } from "@/components/StateBadge";
@@ -326,21 +327,59 @@ function ExpertCardRow({ c }: { c: ExpertCard }) {
 const BOARD: [OutreachStatus | "ANSWERED", string, string][] = [
   ["DRAFTED", "awaiting approval", "text-amber-300"],
   ["SENT", "invited", "text-sky-300"],
-  ["ANSWERED", "answered", "text-violet-300"],
-  ["REJECTED", "rejected", "text-zinc-400"],
+  ["ANSWERED", "answers in", "text-violet-300"],
+  ["REJECTED", "dropped", "text-zinc-400"],
   ["BLOCKED", "blocked", "text-red-300"],
   ["FAILED", "send failed", "text-red-300"],
 ];
 
-const KIND_LABEL: Record<string, string> = { answer: "answer", dont_know: "doesn't know", confidential: "declined: confidential" };
+const TARGET = 2; // accepted answers wanted per sub-question (independence is checked in the memo stage)
+
+const VERDICT_TONE: Record<string, "emerald" | "sky" | "amber" | "red" | "zinc"> = {
+  accepted: "emerald", redacted: "sky", held: "amber", rejected: "red", pending: "zinc",
+};
 
 function LiveTab({ data, events }: { data: CustomerCase; events: SynexEvent[] }) {
-  const responses = events.filter((e) => e.type === "response.received");
-  const counts: Record<string, number> = { ...data.outreach, ANSWERED: responses.length };
+  const [screened, setScreened] = useState<CustomerResponses | null>(null);
+  const responseEvents = events.filter((e) => e.type.startsWith("response.")).length;
+  useEffect(() => {
+    api.customerResponses(data.id).then(setScreened).catch(() => setScreened(null));
+  }, [data.id, responseEvents]);
+
+  const received = Object.values(screened?.coverage ?? {}).reduce((n, c) => n + c.received, 0);
+  const counts: Record<string, number> = { ...data.outreach, ANSWERED: received };
+  const plan = data.plan ?? [];
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-[17px] font-semibold">Coverage</span>
+            <span className="text-xs text-zinc-500">Target: {TARGET} accepted answers per sub-question</span>
+          </div>
+          <div className="flex flex-col rounded-lg border border-zinc-800">
+            {plan.map((sq, i) => {
+              const c = screened?.coverage[String(sq.index)];
+              const ok = (c?.accepted ?? 0) + (c?.redacted ?? 0);
+              const waiting = (c?.pending ?? 0) + (c?.held ?? 0);
+              const label = ok >= TARGET ? "covered" : ok ? `${ok} of ${TARGET}` : waiting ? "screening" : "waiting";
+              return (
+                <div key={sq.index} className={`grid grid-cols-[22px_minmax(0,1fr)_120px_84px] items-center gap-3 px-3.5 py-3 text-sm ${i ? "border-t border-zinc-800" : ""}`}>
+                  <span className="font-mono text-zinc-500">{sq.index}.</span>
+                  <span className="text-pretty">{sq.text}</span>
+                  <span className="flex gap-1">
+                    {Array.from({ length: TARGET }, (_, k) => (
+                      <span key={k} className={`h-2 flex-1 rounded-sm ${k < ok ? "bg-emerald-400" : k < ok + waiting ? "bg-amber-400/60" : "bg-zinc-800"}`} />
+                    ))}
+                  </span>
+                  <span className={`text-right text-xs ${ok >= TARGET ? "text-emerald-300" : ok ? "text-sky-300" : "text-zinc-500"}`}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2.5">
           <span className="text-[17px] font-semibold">Panel</span>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] overflow-hidden rounded-lg border border-zinc-800">
@@ -351,33 +390,51 @@ function LiveTab({ data, events }: { data: CustomerCase; events: SynexEvent[] })
               </div>
             ))}
           </div>
-          <span className="text-xs text-zinc-500">“answered” counts answers to single sub-questions.</span>
+          <span className="text-xs text-zinc-500">“answers in” counts answers to single sub-questions.</span>
         </div>
 
         <div className="flex flex-col gap-2.5">
           <div className="flex items-baseline gap-2.5">
             <span className="text-[17px] font-semibold">Responses</span>
-            <span className="text-xs text-zinc-500">Anonymised · answer text is shown only after screening</span>
+            <span className="text-xs text-zinc-500">Anonymised · screened before you see them</span>
           </div>
-          {responses.length === 0 ? (
-            <span className="text-sm text-zinc-500">No responses yet.</span>
+          {screened && <ScreenCounts coverage={screened.coverage} />}
+          {!screened || screened.responses.length === 0 ? (
+            <span className="text-sm text-zinc-500">
+              {received ? "No accepted answers yet. Held answers wait for a team member; rejected ones are never shown." : "No responses yet."}
+            </span>
           ) : (
-            <div className="flex flex-col overflow-hidden rounded-lg border border-zinc-800">
-              {responses.map((r, i) => (
-                <div key={r.id} className={`flex flex-wrap items-center gap-2 px-3.5 py-2.5 text-[13px] ${i ? "border-t border-line" : ""}`}>
-                  <span className="rounded bg-zinc-800 px-1.5 py-px font-mono text-xs font-semibold">{String(r.response_id)}</span>
-                  <span>Sub-question {String(r.subquestion_index)}</span>
-                  <span className="text-zinc-500">{KIND_LABEL[String(r.kind)] ?? String(r.kind)} · {String(r.mode)}</span>
-                  <span className="ml-auto text-[11px] text-zinc-500">{new Date(r.at).toLocaleTimeString()}</span>
-                  <Pill tone="zinc">awaiting screen</Pill>
+            screened.responses.map((r) => (
+              <div key={r.response_id} className="flex flex-col gap-2 rounded-lg border border-zinc-800 p-3.5">
+                <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                  <span className="rounded bg-zinc-800 px-1.5 py-px font-mono text-xs font-semibold">{r.ref}</span>
+                  <span className="font-medium">{[r.role, r.company].filter(Boolean).join(" · ") || "Former employee"}</span>
+                  <span className="ml-auto text-[11px] text-zinc-500">
+                    sub-question {r.subquestion_index} · {r.mode}{r.confidence ? ` · confidence ${r.confidence}` : ""}
+                  </span>
+                  <Pill tone={VERDICT_TONE[r.verdict]}>{r.verdict}</Pill>
                 </div>
-              ))}
-            </div>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-pretty text-zinc-300">{r.text}</p>
+                <span className="text-[11px] text-zinc-500 font-mono">{r.response_id}</span>
+              </div>
+            ))
           )}
         </div>
       </div>
 
       <EventStream events={events} />
+    </div>
+  );
+}
+
+function ScreenCounts({ coverage }: { coverage: CustomerResponses["coverage"] }) {
+  const total = { accepted: 0, redacted: 0, held: 0, rejected: 0, pending: 0 };
+  for (const c of Object.values(coverage)) for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += c[k];
+  const parts = (Object.entries(total) as [keyof typeof total, number][]).filter(([, n]) => n);
+  if (!parts.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {parts.map(([k, n]) => <Pill key={k} tone={VERDICT_TONE[k]}>{n} {k === "pending" ? "being screened" : k}</Pill>)}
     </div>
   );
 }
@@ -405,6 +462,7 @@ function eventDetail(e: SynexEvent): string {
     case "mail.sent": return `draft ${e.outreach_id}`;
     case "mail.blocked": return `draft ${e.outreach_id} · ${e.reason}`;
     case "response.received": return `${e.response_id} · sub-question ${e.subquestion_index} · ${e.kind}`;
+    case "response.screened": return `${e.response_id} · ${e.verdict}${e.by && e.by !== "screen" ? ` · by ${e.by}` : ""}`;
     case "job.paused": return String(e.reason ?? "");
     default:
       if (e.type.startsWith("ledger.")) return `$${e.amount} ${e.currency ?? ""}`;

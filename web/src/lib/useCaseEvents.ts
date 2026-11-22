@@ -56,4 +56,5 @@ const KNOWN_TYPES = [
   "approval.requested", "approval.approved", "approval.rejected",
   "mail.sent", "mail.blocked", "mail.failed",
   "ledger.hold", "ledger.capture", "ledger.release",
+  "response.received", "response.screened",
 ];
