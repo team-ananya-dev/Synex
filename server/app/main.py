@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core import config
 from .actions.routes import router as approvals_router
+from .core.operator_auth import require_operator_key
 from .jobs.audit_routes import router as audit_router
+from .jobs.mailbox_routes import router as mailbox_router
 from .jobs.routes import router as cases_router
 from .routes.expert import router as expert_router
 from .routes.result import router as result_router
@@ -21,11 +23,13 @@ async def lifespan(_app):
 
 app = FastAPI(title="Synex", lifespan=lifespan)
 # the Next.js app runs on another port in development
+app.middleware("http")(require_operator_key)   # added before CORS, so CORS wraps it and a 401 still carries CORS headers
 app.add_middleware(CORSMiddleware, allow_origins=config.web_origins(),
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(cases_router)
 app.include_router(approvals_router)
 app.include_router(audit_router)
+app.include_router(mailbox_router)
 app.include_router(expert_router)
 app.include_router(result_router)
 
