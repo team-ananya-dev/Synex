@@ -92,3 +92,11 @@ Blocked on: nothing.
 Contracts touched: none.
 
 Libraries and tools to credit in the README (rule 7), added: VT323 font (Google Fonts, SIL Open Font License), loaded with next/font. Design inspiration: krillion.io (look only).
+
+## 2026-11-22 14:52 IST ananya landing-dive
+Done: rebuilt the landing page as an interactive dive (`web/src/components/landing/Landing.tsx`, `sprites.tsx`, `Toys.tsx`; `web/src/app/page.tsx`). Scrolling descends through the eight stages: HUD with depth meter, stage squares and compliance "gates", a depth ruler with a YOU marker, water darkening with depth, light rays near the surface, fish schools, kelp, rising bubbles, a krill that follows the pointer, bubble bursts on click, a menu drawer, real ocean depth facts in the margin, a creature reveal and DESCEND button per stage. Two live toys run the server's own rules in the browser: the people-screen thresholds (sliders) and the stage 7 leak-phrase rule (type an answer). Hero DIVE button sends the question to `/ask?q=`, which now prefills it. All pixel art is original.
+In progress: nothing.
+Next: customer "Review invitations" step; stage 8 memo.
+Decisions: the toys copy thresholds and the regex from the server; if `s4_people_screen.py` defaults or `RISK` in `s7_response_screen.py` change, update `web/src/components/landing/Toys.tsx`. Stage 8 card (memo) still describes unbuilt work.
+Blocked on: nothing.
+Contracts touched: none.

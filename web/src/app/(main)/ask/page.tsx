@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { api, type CaseSummary } from "@/lib/api";
 import { StateBadge } from "@/components/StateBadge";
 
@@ -13,9 +13,19 @@ const EXAMPLES = [
   "What is driving customer churn at consumer fintech apps?",
 ];
 
+// The landing page's DIVE button sends the typed question as ?q=; reading it needs a Suspense boundary.
 export default function AskPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
+      <AskForm />
+    </Suspense>
+  );
+}
+
+function AskForm() {
   const router = useRouter();
-  const [question, setQuestion] = useState("");
+  const params = useSearchParams();
+  const [question, setQuestion] = useState(() => params.get("q") ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<CaseSummary[] | null>(null);

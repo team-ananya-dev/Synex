@@ -68,3 +68,43 @@ button:not(:disabled) {
 @media (prefers-reduced-motion: reduce) {
   .bubble, .cursor { animation: none !important; }
 }
+
+/* ---- landing: interactive dive ---- */
+.notch {
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, calc(100% - 10px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 10px, 100% 10px,
+    100% calc(100% - 10px), calc(100% - 4px) calc(100% - 10px), calc(100% - 4px) calc(100% - 4px), calc(100% - 10px) calc(100% - 4px),
+    calc(100% - 10px) 100%, 10px 100%, 10px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 10px), 0 calc(100% - 10px),
+    0 10px, 4px 10px, 4px 4px, 10px 4px);
+}
+.scanlines { position: relative; }
+.scanlines::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px);
+}
+@keyframes swim { from { transform: translateX(-12vw); } to { transform: translateX(112vw); } }
+@keyframes swim-back { from { transform: translateX(112vw) scaleX(-1); } to { transform: translateX(-12vw) scaleX(-1); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes burst {
+  0% { transform: translate(0, 0) scale(.4); opacity: .9; }
+  100% { transform: translate(var(--dx), -90px) scale(1); opacity: 0; }
+}
+@keyframes ping { 0% { transform: scale(.2); opacity: .9; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes through { from { left: -10%; } to { left: 105%; } }
+@keyframes bounce {
+  0% { left: -10%; } 45% { left: calc(50% - 44px); } 60% { left: calc(50% - 60px); transform: translateY(-50%) rotate(-12deg); }
+  100% { left: 8%; transform: translateY(-50%) rotate(0); }
+}
+.swim-through { animation: through 1.6s linear infinite; }
+.bounce-off { animation: bounce 1.4s ease-out forwards; }
+.pop-in { animation: pop .55s cubic-bezier(.34, 1.56, .64, 1) both; }
+.bob { animation: bob 2.4s ease-in-out infinite; }
+.ping { animation: ping 2.4s ease-out infinite; }
+
+.pixel-range { appearance: none; height: 10px; background: #1b2c47; outline: none; }
+.pixel-range::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; background: #4de3ff; box-shadow: 0 0 12px rgba(77, 227, 255, .6); cursor: pointer; }
+.pixel-range::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 0; background: #4de3ff; box-shadow: 0 0 12px rgba(77, 227, 255, .6); cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fish, .bob, .ping, .pop-in, .swim-through, .bounce-off, .burst { animation: none !important; }
+}
