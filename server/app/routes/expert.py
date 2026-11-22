@@ -90,7 +90,7 @@ def get_expert_page(token: str):
             "persona": _persona(conn, ctx["outreach_id"]),
             "subquestions": ctx["subquestions"],
             "submitted": bool(_answered(conn, ctx["outreach_id"])),
-            "payout": {"per_accepted_answer": PAYOUT_PER_ACCEPTED_ANSWER, "currency": CURRENCY},
+            "payout": {"per_accepted_answer": PAYOUT_PER_ACCEPTED_ANSWER, "currency": CURRENCY, "terms": "payout terms shown for illustration; no payment is made in this build"},
         }
     finally:
         conn.close()

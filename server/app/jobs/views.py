@@ -6,7 +6,7 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from ..actions import ledger, queue
+from ..actions import pricing, queue
 from ..core import config
 
 
@@ -27,8 +27,7 @@ def _case(conn, case_id: str) -> sqlite3.Row:
 def costs(conn, case_id: str) -> dict:
     credits = conn.execute("SELECT COALESCE(SUM(credits),0) c FROM crustdata_calls WHERE case_id=?", (case_id,)).fetchone()["c"]
     usd = conn.execute("SELECT COALESCE(SUM(cost_usd),0) c FROM llm_calls WHERE case_id=?", (case_id,)).fetchone()["c"]
-    from .runner import CREDIT_CAP
-    return {"crustdata_credits": credits, "model_usd": round(usd, 6), "credit_cap": CREDIT_CAP}
+    return {"crustdata_credits": credits, "model_usd": round(usd, 6), "credit_cap": config.case_credit_cap()}
 
 
 def operator_view(conn, case_id: str) -> dict:
@@ -103,9 +102,9 @@ def customer_view(conn, case_id: str) -> dict:
     params = json.loads(case["params"])
     plan = stages.get("s2_decomposer")
     quote = None
-    if plan and case["state"] == "PLANNED":
+    if plan:
         limit = config.dev_max_subquestions()
-        quote = ledger.quote(len(plan if limit is None else plan[:limit]))
+        quote = pricing.quote(len(plan if limit is None else plan[:limit]))
     names = _company_names(stages)
     final = stages.get("s5b_enrich_rerank") or stages.get("s5_ranker") or {}
     screening = {}
@@ -121,10 +120,9 @@ def customer_view(conn, case_id: str) -> dict:
     return {
         "id": case["id"], "question": case["question"], "state": case["state"], "refusal_reason": case["refusal_reason"],
         "created_at": case["created_at"], "plan": plan, "quote": quote,
-        "approval": {k: params[k] for k in ("panel_size", "budget", "hold") if k in params} or None,
+        "approval": {"panel_size": params["panel_size"]} if "panel_size" in params else None,
         "screening": screening,
         "panel": {idx: [card(case_id, p, names) for p in v["ranked"]] for idx, v in final.items()},
         "outreach": outreach, "invites": queue.invites(conn, case_id),
-        "ledger": {"balance": ledger.balance(conn, case_id), "entries": ledger.entries(conn, case_id)},
         "cost": costs(conn, case_id),
     }

@@ -18,7 +18,6 @@ from ..crustdata.client import CrustdataClient
 from ..stages import s1_question_screen, s2_decomposer, s3_sourcer, s4_people_screen, s5_ranker, s6_outreach_writer
 
 DEFAULT_PARAMS = {"min_left": 6, "max_left": 24, "min_years": 1}
-CREDIT_CAP = 25.0
 crustdata_transport = None  # tests only: an httpx transport that replaces the network
 
 
@@ -108,7 +107,7 @@ def _source_and_draft(conn, case_id: str) -> None:
     subs = stage_rows["s2_decomposer"]
     set_state(conn, case_id, "SOURCING")
 
-    client = CrustdataClient(conn, case_id=case_id, credit_cap=CREDIT_CAP, transport=crustdata_transport)
+    client = CrustdataClient(conn, case_id=case_id, credit_cap=config.case_credit_cap(), transport=crustdata_transport)
     limit = config.dev_max_subquestions()
     work = subs if limit is None else subs[:limit]
 

@@ -116,21 +116,3 @@ CREATE TABLE IF NOT EXISTS outreach (
     created_at         TEXT NOT NULL,
     UNIQUE (case_id, person_id)
 );
-
--- Simulated ledger. Every amount is labelled simulated; no real payment exists anywhere in this system.
--- kind: HOLD (plan approved), CAPTURE (a sub-question answered by enough independent experts), RELEASE (unused hold returned).
-CREATE TABLE IF NOT EXISTS ledger (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    case_id     TEXT NOT NULL,
-    kind        TEXT NOT NULL,
-    amount      REAL NOT NULL,
-    currency    TEXT NOT NULL DEFAULT 'USD (simulated)',
-    ref         TEXT,
-    note        TEXT,
-    created_by  TEXT NOT NULL,
-    created_at  TEXT NOT NULL
-);
-CREATE TRIGGER IF NOT EXISTS ledger_no_update BEFORE UPDATE ON ledger
-BEGIN SELECT RAISE(ABORT, 'ledger is append-only'); END;
-CREATE TRIGGER IF NOT EXISTS ledger_no_delete BEFORE DELETE ON ledger
-BEGIN SELECT RAISE(ABORT, 'ledger is append-only'); END;

@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from app.actions import ledger, queue
+from app.actions import queue
 from app.core import db
 from tests.test_runner import api, events, start  # noqa: F401  (fixtures and helpers)
 
@@ -48,7 +48,8 @@ def test_customer_view_has_cards_with_evidence_and_screening_reasons(api):
     assert card["evidence"] == ["Operations Manager"] and card["evidence_hidden"] == 0
     sc = v["screening"]["1"]
     assert sc["considered"] == 3 and sc["fail"] == 2 and all(e["reasons"] and e["ref"] for e in sc["excluded"])
-    assert v["outreach"] == {"DRAFTED": 1} and v["approval"] == {"panel_size": 2, "budget": 1000, "hold": 200}
+    assert v["outreach"] == {"DRAFTED": 1} and v["approval"] == {"panel_size": 2}
+    assert "ledger" not in v and v["quote"]["label"] == "quoted price, no payment taken"
 
 
 def test_expert_ref_is_stable_per_case_and_differs_across_cases():
@@ -56,28 +57,24 @@ def test_expert_ref_is_stable_per_case_and_differs_across_cases():
     assert expert_ref("c1", 5) == expert_ref("c1", 5) != expert_ref("c2", 5) != expert_ref("c1", 6)
 
 
-def test_quote_is_shown_while_waiting_and_budget_is_checked(api):
+def test_quote_is_in_rupees_and_takes_no_payment(api):
     client, _ = api
     cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
     v = client.get(f"/customer/cases/{cid}").json()
-    assert v["state"] == "PLANNED" and v["quote"] == {"subquestions": 2, "price_per_subquestion": 100.0, "hold_amount": 200.0,
-                                                      "currency": "USD (simulated)"}
-    low = client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2, "budget": 150})
-    assert low.status_code == 422 and "200" in low.json()["detail"]
-    assert client.get(f"/cases/{cid}").json()["state"] == "PLANNED"     # nothing was spent or started
-    assert client.get(f"/customer/cases/{cid}").json()["ledger"]["entries"] == []
+    assert v["state"] == "PLANNED" and v["quote"] == {"subquestions": 2, "price_per_subquestion_inr": 8000.0,
+                                                      "quoted_price_inr": 16000.0, "label": "quoted price, no payment taken"}
+    r = client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2})
+    assert r.status_code == 200 and r.json()["quote"]["label"] == "quoted price, no payment taken"
 
 
 def test_plan_approval_rules(api):
     client, _ = api
     cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
-    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 0, "budget": 500}).status_code == 422
-    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 9, "budget": 500}).status_code == 422
-    assert client.post("/customer/cases/nope/approve-plan", json={"panel_size": 2, "budget": 500}).status_code == 404
-    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2, "budget": 500}).status_code == 200
-    again = client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2, "budget": 500})
-    assert again.status_code == 409                                      # one hold, one run
-    assert len(client.get(f"/customer/cases/{cid}").json()["ledger"]["entries"]) == 1
+    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 0}).status_code == 422
+    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 9}).status_code == 422
+    assert client.post("/customer/cases/nope/approve-plan", json={"panel_size": 2}).status_code == 404
+    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2}).status_code == 200
+    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2}).status_code == 409   # one run
 
 
 def test_refused_case_cannot_be_approved(api):
@@ -85,7 +82,7 @@ def test_refused_case_cannot_be_approved(api):
     client, fake = api
     fake["v"] = FakeAnthropic("refuse")
     cid = client.post("/cases", json={"question": "Tell me Acme's unreleased revenue"}).json()["id"]
-    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2, "budget": 500}).status_code == 409
+    assert client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": 2}).status_code == 409
 
 
 def test_panel_size_limits_the_number_of_drafts(api):
@@ -93,43 +90,6 @@ def test_panel_size_limits_the_number_of_drafts(api):
     cid = start(client, panel_size=1)
     items = client.get("/approvals", params={"case_id": cid}).json()
     assert len(items) == 1                                               # only one person passes in the fixture anyway
-    assert client.get(f"/customer/cases/{cid}").json()["ledger"]["balance"]["held"] == 200.0
-
-
-# ---- ledger ---------------------------------------------------------------------------------------
-
-@pytest.fixture
-def conn():
-    return db.connect(":memory:")
-
-
-def test_ledger_hold_capture_release(conn):
-    ledger.place_hold(conn, "c1", 300, "customer")
-    ledger.capture(conn, "c1", 1, 100, "system")
-    assert ledger.balance(conn, "c1") == {"held": 300.0, "captured": 100.0, "released": 0.0, "remaining": 200.0, "currency": "USD (simulated)"}
-    ledger.release_remaining(conn, "c1", "system")
-    b = ledger.balance(conn, "c1")
-    assert b["remaining"] == 0 and b["released"] == 200.0
-    assert ledger.release_remaining(conn, "c1", "system") is None       # nothing left to release
-    assert all(e["currency"] == "USD (simulated)" for e in ledger.entries(conn, "c1"))
-    types = [r["type"] for r in conn.execute("SELECT type FROM events")]
-    assert types == ["ledger.hold", "ledger.capture", "ledger.release"]
-
-
-def test_ledger_refuses_a_second_hold_and_an_oversized_capture(conn):
-    ledger.place_hold(conn, "c1", 100, "customer")
-    with pytest.raises(ledger.LedgerError):
-        ledger.place_hold(conn, "c1", 100, "customer")
-    with pytest.raises(ledger.LedgerError):
-        ledger.capture(conn, "c1", 1, 101, "system")
-
-
-def test_ledger_is_append_only(conn):
-    ledger.place_hold(conn, "c1", 100, "customer")
-    with pytest.raises(sqlite3.DatabaseError):
-        conn.execute("UPDATE ledger SET amount=1")
-    with pytest.raises(sqlite3.DatabaseError):
-        conn.execute("DELETE FROM ledger")
 
 
 # ---- expert page hand-off ---------------------------------------------------------------------------

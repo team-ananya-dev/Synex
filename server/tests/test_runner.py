@@ -94,10 +94,10 @@ def api(tmp_path, monkeypatch):
     return TestClient(app), fake
 
 
-def start(client, question="What does Acme do?", panel_size=2, budget=1000):
+def start(client, question="What does Acme do?", panel_size=2):
     """Create a case, wait for the plan, and click approve (what the customer does)."""
     cid = client.post("/cases", json={"question": question}).json()["id"]
-    r = client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": panel_size, "budget": budget})
+    r = client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": panel_size})
     assert r.status_code == 200, r.text
     return cid
 
@@ -134,7 +134,8 @@ def test_full_run_streams_stages_and_ends_paused(api):
     assert evs[-1]["type"] == "job.paused"
     states = [e["state"] for e in evs if e["type"] == "case.state"]
     assert states == ["PLANNED", "SOURCING", "AWAITING_APPROVAL"]
-    assert [e["type"] for e in evs if e["type"] in ("plan.approved", "ledger.hold")] == ["ledger.hold", "plan.approved"]
+    assert [e["type"] for e in evs if e["type"] == "plan.approved"] == ["plan.approved"]
+    assert not any(e["type"].startswith("ledger.") for e in evs)          # no payment-like action anywhere
 
     view = client.get(f"/cases/{cid}").json()
     assert view["state"] == "AWAITING_APPROVAL"
