@@ -43,8 +43,12 @@ Two people, each with their own agents: Dev and Ananya. The person tells you who
 
 ## Commands
 
-To be filled in once the skeleton exists (around 0:45). Until then, run nothing that assumes a stack.
+Server (Dev). Setup once, then run from `server/`:
 
-- Server: `TBD`
-- Web: `TBD`
-- Tests: `TBD`
+- Setup: `cd server && uv venv .venv && uv pip install -r requirements.txt --python .venv/bin/python`
+- Server: `cd server && SYNEX_DEV_CACHE=1 .venv/bin/uvicorn app.main:app --port 8000` (API docs at `http://localhost:8000/docs`)
+- Local inbox: `mailpit` (SMTP 1025, inbox `http://localhost:8025`)
+- Tests: `cd server && .venv/bin/python -m pytest -q`
+- Demo and finals mode: set `SYNEX_DEMO=1` (no dev cache, no dev result limits).
+
+Web (Ananya): `TBD`

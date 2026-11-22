@@ -35,3 +35,14 @@ The stream also closes after a `case.state` of `REFUSED` or `FAILED`. Events car
 | `mail.failed` | `outreach_id`, `error` | The mail server could not be reached or refused the message. |
 
 The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need a new connection with `?after=`.
+
+## Added 2026-11-22 (plan approval and ledger)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `plan.approved` | `panel_size`, `budget`, `hold`, `currency` | The customer approved the plan. Sourcing starts. |
+| `ledger.hold` | `amount`, `currency`, `ref`, `by` | Simulated hold placed. |
+| `ledger.capture` | `amount`, `currency`, `ref`, `by` | Simulated charge for one answered sub-question (`ref` is `subquestion:<n>`). |
+| `ledger.release` | `amount`, `currency`, `ref`, `by` | Unused hold released. |
+
+`job.paused` now also happens at `PLANNED`. The customer stream (`/customer/cases/{id}/events`) removes personal data as described in `API.md`.

@@ -61,6 +61,7 @@ def normalise(profile: dict, company_id: int, call_id: str, today: date) -> dict
         "name": profile["basic_profile"]["name"],
         "headline": profile["basic_profile"].get("headline"),
         "location": (profile["basic_profile"].get("location") or {}).get("raw"),
+        "country": (profile["basic_profile"].get("location") or {}).get("country"),
         "profile_url": ((profile.get("social_handles") or {}).get("professional_network_identifier") or {}).get("profile_url"),
         "title": role.get("title"),
         "function": role.get("function_category"),

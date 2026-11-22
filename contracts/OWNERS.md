@@ -36,5 +36,8 @@ Written 2026-11-22 by Dev. Append-only: a change needs a message to the other pe
 | `SYNEX_DEV_DRAFTS` | Outreach drafts per sub-question (2 while developing, 3 in demo mode). |
 | `SYNEX_SMTP_HOST`, `SYNEX_SMTP_PORT` | Mail server (default `localhost:1025`, Mailpit). |
 | `SYNEX_EXPERT_BASE_URL` | Base of the private expert link (default `http://localhost:3000`). |
+| `SYNEX_PRICE_PER_SUBQUESTION` | Simulated price per answered sub-question (default 100). A placeholder: the real rate is undecided. |
 
 The teammate mail allowlist and the list of registered approvers are hard-coded in `server/app/actions/mail.py` (Dev). Table `outreach` is Dev's.
+
+Tables `ledger` (append-only) and `cases`, `stage_results` are Dev's.

@@ -96,3 +96,18 @@ def approve(conn: sqlite3.Connection, outreach_id: int, approver: str) -> dict:
         _set(conn, outreach_id, "SENT", decided_by=by, decided_at=_now(), sent_at=_now())
         append_event(conn, row["case_id"], "mail.sent", {"outreach_id": outreach_id, "to": row["to_address"]})
     return view(conn.execute("SELECT * FROM outreach WHERE id=?", (outreach_id,)).fetchone())
+
+
+def expert_context(conn: sqlite3.Connection, token: str) -> dict | None:
+    """What the expert page may show for a private link, or None for an unknown token. The page should only
+    accept a link whose status is SENT. It carries no customer information and no other expert's data."""
+    row = conn.execute("SELECT * FROM outreach WHERE token=?", (token,)).fetchone()
+    if not row:
+        return None
+    plan = conn.execute("SELECT result FROM stage_results WHERE case_id=? AND stage='s2_decomposer' ORDER BY id DESC LIMIT 1",
+                        (row["case_id"],)).fetchone()
+    subs = {s["index"]: s["text"] for s in json.loads(plan["result"])} if plan else {}
+    first = (row["name"] or "").split(" ")[0].strip(" .").title()
+    return {"outreach_id": row["id"], "case_id": row["case_id"], "person_id": row["person_id"],
+            "first_name": first if len(first) > 1 else None, "status": row["status"],
+            "subquestions": [{"index": i, "text": subs.get(i)} for i in json.loads(row["subquestion_indices"])]}
