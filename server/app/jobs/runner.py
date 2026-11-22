@@ -202,7 +202,12 @@ def _source_and_draft(conn, case_id: str) -> None:
             idx = str(sq["index"])
             first = ranked[idx]["ranked"]
             top, rest = first[:enrich_n], first[enrich_n:]
-            people, enrich_call = people_api.enrich_people(client, [p["profile_url"] for p in top if p["profile_url"]])
+            try:
+                people, enrich_call = people_api.enrich_people(client, [p["profile_url"] for p in top if p["profile_url"]])
+            except Exception as e:  # enrichment improves the ranking; without it the first-pass ranking stands
+                append_event(conn, case_id, "enrich.skipped", {"subquestion_index": sq["index"], "error": f"{type(e).__name__}: {e}"})
+                out[idx] = {**ranked[idx], "enriched_person_ids": [], "enrich_call_id": None, "enrich_skipped": True}
+                continue
             enriched = [s5_ranker.with_profile(p, people[p["profile_url"]], p["company_id"])
                         if p["profile_url"] in people else p for p in top]
             result, llm_call = s5_ranker.rank(conn, enriched, sq["text"], sq["expertise"], case_id)

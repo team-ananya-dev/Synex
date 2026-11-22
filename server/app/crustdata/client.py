@@ -77,7 +77,17 @@ class CrustdataClient:
                 return self._log(endpoint, body, purpose, 200, 0.0, 0, json.loads(hit["response"]), None, True)
 
         started = time.monotonic()
-        resp = self._http.post(endpoint, json=body)
+        resp = None
+        for attempt in range(3):  # a network error (DNS, reset, timeout) is retried twice before it counts
+            try:
+                resp = self._http.post(endpoint, json=body)
+                break
+            except httpx.TransportError as e:
+                if attempt == 2:
+                    latency = int((time.monotonic() - started) * 1000)
+                    call_id = self._log(endpoint, body, purpose, 0, 0.0, latency, None, f"{type(e).__name__}: {e}", False)[1]
+                    raise CrustdataError(0, f"{type(e).__name__}: {e}", call_id) from e
+                time.sleep(1 + attempt)
         if resp.status_code == 429:
             time.sleep(float(resp.headers.get("Retry-After", 3)))
             resp = self._http.post(endpoint, json=body)

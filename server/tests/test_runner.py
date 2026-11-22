@@ -235,3 +235,17 @@ def test_failed_case_retries_from_the_last_finished_stage(api, monkeypatch):
     assert reused == ["s3_sourcer", "s4_people_screen", "s5_ranker", "s5b_enrich_rerank", "s6_outreach_writer"]
     from app.core import db
     assert db.connect().execute("SELECT COUNT(*) c FROM outreach WHERE case_id=?", (cid,)).fetchone()["c"] == 1
+
+
+def test_enrichment_failure_keeps_the_first_pass_ranking(api, monkeypatch):
+    client, _ = api
+
+    def handler(request):
+        return httpx.Response(503, text="down") if request.url.path == "/person/enrich" else crustdata(request)
+
+    monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(handler))
+    cid = start(client)
+    view = client.get(f"/cases/{cid}").json()
+    assert view["state"] == "AWAITING_APPROVAL"
+    assert view["stages"]["s5b_enrich_rerank"]["1"]["enrich_skipped"] is True
+    assert any(e["type"] == "enrich.skipped" for e in db_events(cid))

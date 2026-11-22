@@ -94,3 +94,21 @@ def test_web_origins_default_and_extra(monkeypatch):
     assert config.web_origins() == ["http://localhost:3000", "http://127.0.0.1:3000"]
     monkeypatch.setenv("SYNEX_WEB_ORIGINS", "http://localhost:3001, http://127.0.0.1:3001")
     assert config.web_origins()[2:] == ["http://localhost:3001", "http://127.0.0.1:3001"]
+
+
+def test_network_errors_are_retried_then_logged(conn, monkeypatch):
+    monkeypatch.setattr("app.crustdata.client.time.sleep", lambda s: None)
+    calls = []
+
+    def flaky(request):
+        calls.append(1)
+        if len(calls) < 3:
+            raise httpx.ConnectError("Temporary failure in name resolution")
+        return ok(request)
+
+    data, _ = make_client(conn, flaky).post("/person/search", {}, "t")
+    assert len(calls) == 3 and data["profiles"] == []
+    down = make_client(conn, lambda r: (_ for _ in ()).throw(httpx.ConnectError("down")))
+    with pytest.raises(CrustdataError):
+        down.post("/person/search", {"x": 1}, "t")
+    assert conn.execute("SELECT COUNT(*) c FROM crustdata_calls WHERE status=0").fetchone()["c"] == 1
