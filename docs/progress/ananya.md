@@ -196,3 +196,11 @@ Next: push; voice if time; README, architecture diagram, demo video.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:54 IST ananya readme-architecture
+Done: `README.md` (what is real and simulated, the eight stages, rules, approvals, audit and cost log, run commands, screens, not built, open questions, credits with scaffolding commands) and `docs/ARCHITECTURE.md` (system diagram, case lifecycle, the eight stages, where code decides versus the model, data and audit trail; Mermaid, renders on GitHub). Every claim was checked against the code. Findings that shaped the text: all model calls use the small model and the large-model setting is unused; the restricted list is empty; no payments at all, only a quoted price.
+In progress: nothing.
+Next: Dev reviews the README (request in `docs/inbox/dev/2026-11-22-ananya-readme-review.md`); demo video; voice only if time.
+Decisions: README drafted by me in full, Dev corrects his parts. The demo video link is not in the README yet.
+Blocked on: Dev, review of the README claims about his modules.
+Contracts touched: none.
