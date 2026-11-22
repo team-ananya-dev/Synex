@@ -588,6 +588,20 @@ function ResultTab({ caseId, events }: { caseId: string; events: SynexEvent[] })
     }
   }
 
+  async function close() {
+    if (!window.confirm("Close this case? Expert links will stop taking answers and the result becomes final.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.closeCase(caseId);
+      setResult(await api.result(caseId));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!result) return <p className="text-sm text-zinc-500">{error ?? "Loading result…"}</p>;
   const answered = result.subquestions.filter((s) => s.status === "answered").length;
 
@@ -606,7 +620,22 @@ function ResultTab({ caseId, events }: { caseId: string; events: SynexEvent[] })
         >
           {busy ? "Writing…" : result.summary_status === "written" ? "Summary written" : result.summary_status === "stale" ? "Update summary" : "Write summary"}
         </button>
+        {result.state === "COLLECTING" && (
+          <button
+            onClick={close}
+            disabled={busy || answered === 0}
+            className="rounded-md border border-zinc-700 px-3 py-2 text-sm disabled:opacity-40"
+            title={answered === 0 ? "Needs at least one accepted answer" : "Stop collecting and deliver this result"}
+          >
+            Close case
+          </button>
+        )}
       </div>
+      {result.state === "DELIVERED" && (
+        <p className="rounded-lg border border-emerald-900 bg-[#07110d] px-4 py-3 text-[13px] text-emerald-300">
+          Delivered. Collection is closed: expert links no longer take answers, and this result is final.
+        </p>
+      )}
       {error && <span className="text-[13px] text-red-300">{error}</span>}
       {result.subquestions.map((sq) => <ResultCard key={sq.index} sq={sq} />)}
     </div>
@@ -628,7 +657,9 @@ function ResultCard({ sq }: { sq: ResultSubQuestion }) {
             {sq.label && <Pill tone="zinc">{sq.label}</Pill>}
           </>
         ) : (
-          <Pill tone="amber">cannot verify yet: no accepted answer</Pill>
+          sq.status === "not sourced"
+            ? <Pill tone="zinc">not sourced in development mode</Pill>
+            : <Pill tone="amber">cannot verify yet: no accepted answer</Pill>
         )}
         <span className="text-zinc-500">
           {sq.coverage.received} received · {sq.coverage.accepted} accepted · {sq.coverage.redacted} redacted · {sq.coverage.held} held · {sq.coverage.rejected} rejected

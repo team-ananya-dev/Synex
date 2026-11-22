@@ -26,6 +26,15 @@ export function ExpertView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // after submitting, re-read the page every few seconds until every answer has been screened
+  const waiting = !!page?.available && (step === "done" || page.submitted)
+    && (!page.screening?.length || page.screening.some((x) => x.verdict === "pending"));
+  useEffect(() => {
+    if (!waiting) return;
+    const t = setInterval(() => api.getExpertPage(token).then(setPage).catch(() => {}), 3000);
+    return () => clearInterval(t);
+  }, [waiting, token]);
+
   useEffect(() => {
     api.getExpertPage(token).then(setPage).catch((e) => setLoadError(e.message));
   }, [token]);
@@ -46,14 +55,7 @@ export function ExpertView() {
     if (loadError) return <Closed title="This link is not active" text={loadError.startsWith("404") ? "This link is not valid." : loadError} />;
     if (!page) return <p className="px-[22px] py-10 text-sm text-zinc-500">Loading…</p>;
     if (!page.available) return <Closed title="This link is not active" text={page.reason} />;
-    if (step === "done" || page.submitted) {
-      return (
-        <Closed
-          title="Thank you"
-          text="Your answers were received. Each one is screened before it is used, and answers rejected for confidentiality are not paid. Payout is simulated: no money moves."
-        />
-      );
-    }
+    if (step === "done" || page.submitted) return <Outcome page={page} />;
 
     const { persona, subquestions } = page;
     const draft = (i: number): Draft => drafts[i] ?? { kind: "answer", text: "", confidence: null };
@@ -254,6 +256,43 @@ function Check({ on, onToggle, children }: { on: boolean; onToggle: () => void; 
       </span>
       <span>{children}</span>
     </button>
+  );
+}
+
+const VERDICT_TEXT: Record<string, [string, string]> = {
+  accepted: ["Accepted", "text-leaf"],
+  redacted: ["Accepted with words removed", "text-amber"],
+  held: ["Held for a team member to review", "text-amber"],
+  rejected: ["Not used", "text-koi"],
+  pending: ["Being screened", "text-mist"],
+};
+
+function Outcome({ page }: { page: Extract<ExpertPage, { available: true }> }) {
+  const byIndex = new Map(page.subquestions.map((s, n) => [s.index, n + 1]));
+  return (
+    <div className="flex flex-col gap-4 px-[22px] py-8">
+      <span className="text-xl font-semibold">Thank you</span>
+      <span className="text-sm leading-relaxed text-zinc-400">
+        Every answer is screened before anyone sees it. Here is what happened to each one. Answers that are not used are
+        not paid; the payout is simulated and no money moves.
+      </span>
+      {page.screening.length === 0 && <span className="text-sm text-zinc-500">Screening your answers…</span>}
+      {page.screening.map((x) => {
+        const [label, tone] = VERDICT_TEXT[x.verdict] ?? VERDICT_TEXT.pending;
+        return (
+          <div key={x.index} className="flex flex-col gap-1.5 rounded-lg border border-zinc-800 p-3.5">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-mono text-xs text-zinc-500">Question {byIndex.get(x.index) ?? x.index}</span>
+              <span className={`ml-auto font-medium ${tone}`}>{label}</span>
+            </div>
+            {x.reason && <span className="text-[13px] leading-relaxed text-zinc-400">{x.reason}</span>}
+            {x.removed.length > 0 && (
+              <span className="text-xs text-zinc-500">Removed: {x.removed.map((r) => `“${r}”`).join(", ")}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

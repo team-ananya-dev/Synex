@@ -174,6 +174,8 @@ export type ExpertPage =
       persona: { role: string | null; company: string | null; tenure_months: number | null };
       subquestions: { index: number; text: string }[];
       submitted: boolean;
+      // after submitting: each answer's screening result and why (the expert's own words only)
+      screening: { index: number; kind: AnswerKind; verdict: "accepted" | "redacted" | "held" | "rejected" | "pending"; reason: string | null; removed: string[] }[];
       payout: { per_accepted_answer: number; currency: string };
     };
 
@@ -299,6 +301,8 @@ export const api = {
   // stage 8 result
   result: (id: string) => request<CaseResult>(`/customer/cases/${id}/result`),
   writeSummary: (id: string) => request<CaseResult>(`/customer/cases/${id}/result/summary`, { method: "POST" }),
+  closeCase: (id: string) =>
+    request<{ id: string; state: CaseState; answered_subquestions: number[] }>(`/customer/cases/${id}/close`, { method: "POST" }),
   // expert page
   getExpertPage: (token: string) => request<ExpertPage>(`/expert/${token}`),
   submitResponses: (token: string, body: Submission) =>
@@ -313,7 +317,7 @@ export type ResultAnswer = {
   verdict: "accepted" | "redacted"; text: string; confidence: string | null; mode: string;
 };
 export type ResultSubQuestion = {
-  index: number; text: string; status: "answered" | "no accepted answer";
+  index: number; text: string; status: "answered" | "no accepted answer" | "not sourced";
   coverage: { received: number; pending: number; accepted: number; redacted: number; held: number; rejected: number };
   answers: ResultAnswer[];
   independent_sources: number;

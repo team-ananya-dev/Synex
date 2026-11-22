@@ -220,3 +220,11 @@ Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as ex
 Decisions: Edited Dev's s1, s8 and test_result at Ananya's request; listed in his inbox note.
 Blocked on: nothing.
 Contracts touched: previous commit
+
+## 2026-11-22 16:20 IST ananya gap-web
+Done: Result tab: Close case button (confirm) and Delivered banner, not-sourced status (`web/src/app/(main)/cases/[id]/CaseView.tsx`); expert page shows each answer's result and why, polling until screened (`web/src/app/expert/[token]/ExpertView.tsx`); types and close call in `web/src/lib/api.ts`.
+In progress: nothing.
+Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as experts; demo video.
+Decisions: none new
+Blocked on: nothing.
+Contracts touched: none
