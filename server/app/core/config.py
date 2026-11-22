@@ -75,3 +75,8 @@ def smtp_port() -> int:
 
 def expert_base_url() -> str:
     return os.environ.get("SYNEX_EXPERT_BASE_URL", "http://localhost:3000").rstrip("/")
+
+
+def price_per_subquestion() -> float:
+    """Simulated price per answered sub-question. A placeholder: the real rate is undecided."""
+    return float(os.environ.get("SYNEX_PRICE_PER_SUBQUESTION", "100"))

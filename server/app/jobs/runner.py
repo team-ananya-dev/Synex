@@ -1,9 +1,10 @@
-"""Case job runner: stages 1 to 5, one background job per case.
+"""Case job runner: stages 1 to 6, in two background phases per case.
 
-Every stage emits stage.started and stage.done (with its result) on the audit
-chain; the stream route replays those events to the browser. Stage 6 (outreach)
-does not exist yet, so a finished run ends with job.paused, not a state it has
-not reached.
+Phase 1 (run_case) screens the question and plans, then waits at PLANNED for the customer to
+approve the plan and the spend. Phase 2 (continue_case) sources, screens, ranks, enriches and
+drafts outreach, then waits at AWAITING_APPROVAL for a team member to approve each email.
+Every stage emits stage.started and stage.done (with its result) on the audit chain; the stream
+routes replay those events to the browser.
 """
 import json
 import uuid
@@ -61,10 +62,10 @@ def run_stage(conn, case_id: str, stage: str, fn):
     return result
 
 
-def run_case(case_id: str) -> None:
+def _guarded(case_id: str, phase) -> None:
     conn = db.connect()
     try:
-        _run(conn, case_id)
+        phase(conn, case_id)
     except StageFailed:
         set_state(conn, case_id, "FAILED")
     except Exception as e:  # nothing may leave a case stuck in a running state
@@ -74,20 +75,37 @@ def run_case(case_id: str) -> None:
         conn.close()
 
 
-def _run(conn, case_id: str) -> None:
-    case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
-    params = json.loads(case["params"])
-    today = date.today()
+def run_case(case_id: str) -> None:
+    """Phase 1: screen the question and plan. Then wait for the customer to approve the plan and the spend."""
+    _guarded(case_id, _plan)
 
+
+def continue_case(case_id: str) -> None:
+    """Phase 2, started by the plan approval: source, screen, rank, enrich and draft outreach."""
+    _guarded(case_id, _source_and_draft)
+
+
+def _plan(conn, case_id: str) -> None:
+    case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
     screen = run_stage(conn, case_id, "s1_question_screen",
                        lambda: s1_question_screen.screen(conn, case["question"], case_id)[0])
     if screen["verdict"] == "refuse":
         set_state(conn, case_id, "REFUSED", reason=screen["reason"])
         return
-    question = screen["effective_question"]
-
-    subs = run_stage(conn, case_id, "s2_decomposer", lambda: s2_decomposer.decompose(conn, question, case_id)[0])
+    run_stage(conn, case_id, "s2_decomposer", lambda: s2_decomposer.decompose(conn, screen["effective_question"], case_id)[0])
     set_state(conn, case_id, "PLANNED")
+    append_event(conn, case_id, "job.paused", {"reason": "waiting for the customer to approve the plan and the spend"})
+
+
+def _source_and_draft(conn, case_id: str) -> None:
+    case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    params = json.loads(case["params"])
+    window = {k: params[k] for k in ("min_left", "max_left", "min_years")}
+    today = date.today()
+    stage_rows = {r["stage"]: json.loads(r["result"]) for r in conn.execute(
+        "SELECT stage, result FROM stage_results WHERE case_id=? ORDER BY id", (case_id,))}
+    question = stage_rows["s1_question_screen"]["effective_question"]
+    subs = stage_rows["s2_decomposer"]
     set_state(conn, case_id, "SOURCING")
 
     client = CrustdataClient(conn, case_id=case_id, credit_cap=CREDIT_CAP, transport=crustdata_transport)
@@ -119,7 +137,7 @@ def _run(conn, case_id: str) -> None:
                     companies.append({"asked": target["name"], "basis": target["basis"], "resolved": False})
                     continue
                 found, meta, call_id = s3_sourcer.source(
-                    conn, client, chosen["company_id"], today, **params, limit=25, query=f"{sq['expertise']}: {sq['text']}")
+                    conn, client, chosen["company_id"], today, **window, limit=25, query=f"{sq['expertise']}: {sq['text']}")
                 comp_domains, comp_call = competitors_of(chosen["company_id"])
                 companies.append({"asked": target["name"], "basis": target["basis"], "resolved": True, "chosen": chosen,
                                   "competitor_domains": comp_domains, "competitors_call_id": comp_call,
@@ -157,13 +175,17 @@ def _run(conn, case_id: str) -> None:
 
     ranked = run_stage(conn, case_id, "s5_ranker", rank_all)
 
+    panel_size = params.get("panel_size", config.dev_drafts())
+    per_sq = panel_size if config.demo_mode() else min(panel_size, config.dev_drafts())
+    enrich_n = max(config.enrich_top(), per_sq)
+
     def enrich_all():
         """Fetch the full profile of the top few per sub-question and re-rank them on role descriptions and skills."""
         out = {}
         for sq in work:
             idx = str(sq["index"])
             first = ranked[idx]["ranked"]
-            top, rest = first[: config.enrich_top()], first[config.enrich_top():]
+            top, rest = first[:enrich_n], first[enrich_n:]
             people, enrich_call = people_api.enrich_people(client, [p["profile_url"] for p in top if p["profile_url"]])
             enriched = [s5_ranker.with_profile(p, people[p["profile_url"]], p["company_id"])
                         if p["profile_url"] in people else p for p in top]
@@ -181,6 +203,6 @@ def _run(conn, case_id: str) -> None:
     company_names = {str(c["chosen"]["company_id"]): c["chosen"]["name"]
                      for v in sourced.values() for c in v["companies"] if c["resolved"]}
     run_stage(conn, case_id, "s6_outreach_writer", lambda: s6_outreach_writer.write_drafts(
-        conn, case_id, work, {idx: r["ranked"] for idx, r in final.items()}, screens, company_names, config.dev_drafts()))
+        conn, case_id, work, {idx: r["ranked"] for idx, r in final.items()}, screens, company_names, per_sq))
     set_state(conn, case_id, "AWAITING_APPROVAL")
     append_event(conn, case_id, "job.paused", {"reason": "outreach drafts are waiting for approval"})

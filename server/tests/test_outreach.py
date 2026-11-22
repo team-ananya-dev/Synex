@@ -8,7 +8,7 @@ from app.core import db
 from app.core.events import verify_chain
 from app.main import app
 from app.stages import s6_outreach_writer as s6
-from tests.test_runner import api, events  # noqa: F401  (fixtures and helpers)
+from tests.test_runner import api, events, start  # noqa: F401  (fixtures and helpers)
 
 
 class FakeSMTP:
@@ -38,7 +38,7 @@ def smtp(monkeypatch):
 
 
 def run_case(client):
-    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    cid = start(client)
     items = client.get("/approvals", params={"case_id": cid}).json()
     return cid, items
 
@@ -50,7 +50,7 @@ def test_drafts_wait_in_the_queue_and_nothing_is_sent(api, smtp):
     item = items[0]
     assert item["to_address"] in mail.ALLOWLIST          # a teammate plays the expert
     assert item["subquestion_indices"] == [1, 2]
-    assert "{{" not in item["body"] and "/expert/" in item["body"] and item["body"].startswith("Hello P1,")
+    assert "{{" not in item["body"] and "/expert/" in item["body"] and item["body"].startswith("Hello Quentin,")
     assert "token" not in item
     assert client.get(f"/cases/{cid}").json()["state"] == "AWAITING_APPROVAL"
 

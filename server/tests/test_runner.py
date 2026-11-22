@@ -47,7 +47,7 @@ class FakeAnthropic:
 
 
 def person(pid, company_id, current=False, rival=None):
-    return {"crustdata_person_id": pid, "basic_profile": {"name": f"P{pid}", "headline": "h"}, "metadata": {},
+    return {"crustdata_person_id": pid, "basic_profile": {"name": f"Quentin Zephyr{pid}", "headline": "Secret headline", "location": {"raw": "Pune, Maharashtra, India", "country": "India"}}, "metadata": {},
             "social_handles": {"professional_network_identifier": {"profile_url": f"https://example.test/in/{pid}"}},
             "experience": {"employment_details": {
                 "past": [{"crustdata_company_id": company_id, "title": "Operations Manager",
@@ -94,21 +94,47 @@ def api(tmp_path, monkeypatch):
     return TestClient(app), fake
 
 
+def start(client, question="What does Acme do?", panel_size=2, budget=1000):
+    """Create a case, wait for the plan, and click approve (what the customer does)."""
+    cid = client.post("/cases", json={"question": question}).json()["id"]
+    r = client.post(f"/customer/cases/{cid}/approve-plan", json={"panel_size": panel_size, "budget": budget})
+    assert r.status_code == 200, r.text
+    return cid
+
+
+def db_events(case_id):
+    from app.core import db
+    return [{"type": r["type"], **json.loads(r["payload"])} for r in db.connect().execute(
+        "SELECT type, payload FROM events WHERE case_id=? ORDER BY id", (case_id,))]
+
+
 def events(client, case_id):
     with client.stream("GET", f"/cases/{case_id}/events") as r:
         text = "".join(r.iter_text())
     return [json.loads(b.split("data: ", 1)[1]) for b in text.split("\n\n") if "data: " in b]
 
 
+def test_plan_then_wait_then_sourcing_after_approval(api):
+    client, _ = api
+    SEEN.clear()
+    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    evs = events(client, cid)                       # the stream closes at the first pause
+    assert [e["stage"] for e in evs if e["type"] == "stage.done"] == ["s1_question_screen", "s2_decomposer"]
+    assert evs[-1]["type"] == "job.paused" and "approve the plan" in evs[-1]["reason"]
+    assert client.get(f"/cases/{cid}").json()["state"] == "PLANNED"
+    assert SEEN == []  # no Crustdata call before the customer approves    assert client.get(f"/cases/{cid}").json()["cost"]["crustdata_credits"] == 0
+
+
 def test_full_run_streams_stages_and_ends_paused(api):
     client, _ = api
-    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
-    evs = events(client, cid)
+    cid = start(client)
+    evs = db_events(cid)
     done = [e["stage"] for e in evs if e["type"] == "stage.done"]
     assert done == ["s1_question_screen", "s2_decomposer", "s3_sourcer", "s4_people_screen", "s5_ranker", "s5b_enrich_rerank", "s6_outreach_writer"]
     assert evs[-1]["type"] == "job.paused"
     states = [e["state"] for e in evs if e["type"] == "case.state"]
     assert states == ["PLANNED", "SOURCING", "AWAITING_APPROVAL"]
+    assert [e["type"] for e in evs if e["type"] in ("plan.approved", "ledger.hold")] == ["ledger.hold", "plan.approved"]
 
     view = client.get(f"/cases/{cid}").json()
     assert view["state"] == "AWAITING_APPROVAL"
@@ -129,7 +155,7 @@ def test_full_run_streams_stages_and_ends_paused(api):
 def test_search_sends_relevance_query_and_hard_filters(api):
     client, _ = api
     SEEN.clear()
-    client.post("/cases", json={"question": "What does Acme do?"})
+    start(client)
     body = next(b for path, b in SEEN if path == "/person/search")
     assert body["mode"] == "exact" and body["search"]["query"].startswith("operations: ")
     fields = [c["field"] for c in body["filters"]["conditions"]]
@@ -144,17 +170,17 @@ def test_failed_competitor_lookup_gives_review_not_a_silent_pass(api, monkeypatc
         return httpx.Response(500, text="down") if request.url.path == "/company/enrich" else crustdata(request)
 
     monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(handler))
-    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    cid = start(client)
     view = client.get(f"/cases/{cid}").json()
     assert view["state"] == "AWAITING_APPROVAL"
     s4 = {s["person_id"]: s["verdict"] for s in view["stages"]["s4_people_screen"]["1"]}
     assert s4[1] == "review" and s4[3] == "review"
-    assert any(e["type"] == "competitor.lookup_failed" for e in events(client, cid))
+    assert any(e["type"] == "competitor.lookup_failed" for e in db_events(cid))
 
 
 def test_dev_limit_runs_two_subquestions_only(api):
     client, _ = api
-    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    cid = start(client)
     assert sorted(client.get(f"/cases/{cid}").json()["stages"]["s3_sourcer"]) == ["1", "2"]
 
 
@@ -171,10 +197,9 @@ def test_refused_question_stops_early(api):
 def test_stage_failure_marks_case_failed(api, monkeypatch):
     client, _ = api
     monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(lambda r: httpx.Response(500, text="down")))
-    cid = client.post("/cases", json={"question": "What does Acme do?"}).json()["id"]
+    cid = start(client)
     assert client.get(f"/cases/{cid}").json()["state"] == "FAILED"
-    evs = events(client, cid)
-    assert any(e["type"] == "stage.failed" and e["stage"] == "s3_sourcer" for e in evs)
+    assert any(e["type"] == "stage.failed" and e["stage"] == "s3_sourcer" for e in db_events(cid))
 
 
 def test_unknown_case_is_404_and_short_question_rejected(api):
