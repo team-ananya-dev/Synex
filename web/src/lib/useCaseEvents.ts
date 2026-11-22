@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { eventsUrl, TERMINAL_STATES, type CaseState, type SynexEvent } from "./api";
+import { eventsUrl, TERMINAL_STATES, type Audience, type CaseState, type SynexEvent } from "./api";
 
-// Follows GET /cases/{id}/events. The server closes the stream at job.paused;
-// EventSource then reconnects with Last-Event-ID, and the server keeps that
-// second stream open, so approval.* and mail.* events still arrive live.
+// Follows the case event stream (customer or operator). The server closes the
+// stream at every job.paused (after planning, after outreach drafts); EventSource
+// then reconnects with Last-Event-ID and picks up from there, so later events
+// (plan.approved, sourcing, approval.*, mail.*) still arrive live.
 // We close for good only on a terminal case state.
-export function useCaseEvents(caseId: string | undefined, onEvent?: (e: SynexEvent) => void) {
+export function useCaseEvents(
+  caseId: string | undefined,
+  audience: Audience,
+  onEvent?: (e: SynexEvent) => void,
+) {
   // events are tagged with their case so a new case id starts from an empty list
   const [log, setLog] = useState<{ caseId?: string; events: SynexEvent[] }>({ events: [] });
   const [connected, setConnected] = useState(false);
@@ -20,7 +25,7 @@ export function useCaseEvents(caseId: string | undefined, onEvent?: (e: SynexEve
   useEffect(() => {
     if (!caseId) return;
     const seen = new Set<number>();
-    const source = new EventSource(eventsUrl(caseId));
+    const source = new EventSource(eventsUrl(caseId, audience));
 
     const receive = (msg: MessageEvent) => {
       const event = JSON.parse(msg.data) as SynexEvent;
@@ -40,14 +45,15 @@ export function useCaseEvents(caseId: string | undefined, onEvent?: (e: SynexEve
     for (const type of KNOWN_TYPES) source.addEventListener(type, receive);
     source.onmessage = receive;
     return () => source.close();
-  }, [caseId]);
+  }, [caseId, audience]);
 
   return { events: log.caseId === caseId ? log.events : [], connected };
 }
 
 const KNOWN_TYPES = [
-  "case.created", "case.state", "stage.started", "stage.done", "stage.failed",
+  "case.created", "case.state", "plan.approved", "stage.started", "stage.done", "stage.failed",
   "crustdata.call", "llm.call", "job.paused", "competitor.lookup_failed",
   "approval.requested", "approval.approved", "approval.rejected",
   "mail.sent", "mail.blocked", "mail.failed",
+  "ledger.hold", "ledger.capture", "ledger.release",
 ];

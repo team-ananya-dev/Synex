@@ -14,7 +14,7 @@ export default function AskPage() {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
 
   useEffect(() => {
-    api.listCases().then(setCases).catch((e) => setError(`Could not reach the server: ${e.message}`));
+    api.listCustomerCases().then(setCases).catch((e) => setError(`Could not reach the server: ${e.message}`));
   }, []);
 
   async function submit(e: React.FormEvent) {

@@ -26,6 +26,8 @@ export type Company = {
   total_matches?: number;
 };
 
+// ---- operator view (GET /cases/{id}) ----
+
 // Candidate fields. name, headline, profile_url and location are operator-only:
 // never render them on a customer screen (Dev's note, 2026-11-22).
 export type Candidate = {
@@ -76,6 +78,56 @@ export type CaseView = {
     s5_ranker?: RankStage;
     s5b_enrich_rerank?: RankStage;
     [stage: string]: unknown;
+  };
+  cost: { crustdata_credits: number; model_usd: number; credit_cap: number };
+};
+
+// ---- customer view (GET /customer/cases/{id}); never contains a name, headline, link, city or email ----
+
+export type ExpertCard = {
+  ref: string;
+  role: string | null;
+  company: string | null;
+  tenure_months: number | null;
+  left_year: string | null;
+  country: string | null;
+  fit: "strong" | "partial";
+  score: number;
+  reason: string;
+  evidence: string[];
+  evidence_hidden: number;
+};
+
+export type Quote = { subquestions: number; price_per_subquestion: number; hold_amount: number; currency: string };
+
+export type LedgerEntry = {
+  kind: "HOLD" | "CAPTURE" | "RELEASE";
+  amount: number;
+  currency: string;
+  ref: string | null;
+  note: string;
+  created_by: string;
+  created_at: string;
+};
+
+export type CustomerCase = {
+  id: string;
+  question: string;
+  state: CaseState;
+  refusal_reason: string | null;
+  created_at: string;
+  plan: SubQuestion[] | null;
+  quote: Quote | null;
+  approval: { panel_size?: number; budget?: number; hold?: number } | null;
+  screening: Record<string, {
+    considered: number; pass: number; review: number; fail: number;
+    excluded: { ref: string; reasons: string[] }[];
+  }>;
+  panel: Record<string, ExpertCard[]>;
+  outreach: Partial<Record<OutreachStatus, number>>;
+  ledger: {
+    balance: { held: number; captured: number; released: number; remaining: number; currency: string };
+    entries: LedgerEntry[];
   };
   cost: { crustdata_credits: number; model_usd: number; credit_cap: number };
 };
@@ -132,7 +184,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   createCase: (question: string) =>
     request<{ id: string; state: CaseState }>("/cases", { method: "POST", body: JSON.stringify({ question }) }),
-  listCases: () => request<CaseSummary[]>("/cases"),
+  // customer routes
+  listCustomerCases: () => request<CaseSummary[]>("/customer/cases"),
+  getCustomerCase: (id: string) => request<CustomerCase>(`/customer/cases/${id}`),
+  approvePlan: (id: string, panel_size: number, budget: number) =>
+    request<{ id: string; state: CaseState; hold: Quote }>(`/customer/cases/${id}/approve-plan`, {
+      method: "POST", body: JSON.stringify({ panel_size, budget }),
+    }),
+  // operator routes: real people's details, operator screens only
   getCase: (id: string) => request<CaseView>(`/cases/${id}`),
   listApprovals: (filters: { status?: OutreachStatus; case_id?: string } = {}) => {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
@@ -142,4 +201,7 @@ export const api = {
     request<Approval>(`/approvals/${id}/${decision}`, { method: "POST", body: JSON.stringify({ approver }) }),
 };
 
-export const eventsUrl = (caseId: string, after = 0) => `${API_BASE}/cases/${caseId}/events?after=${after}`;
+export type Audience = "customer" | "operator";
+
+export const eventsUrl = (caseId: string, audience: Audience, after = 0) =>
+  `${API_BASE}${audience === "customer" ? "/customer" : ""}/cases/${caseId}/events?after=${after}`;
