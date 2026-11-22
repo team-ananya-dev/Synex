@@ -82,3 +82,13 @@ Next: customer "Review invitations" step; stage 8.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 14:41 IST ananya landing-page
+Done: landing page at `/` (`web/src/app/page.tsx`), visual style inspired by krillion.io (deep-sea palette, VT323 pixel display font, "descending" depth motif; colours only, no assets copied). Content is Synex's own: hero, data strip, the eight stages as depths, compliance rules and cards, expert-network comparison, "what's real, what's simulated", final call to action. The Ask screen moved from `/` to `/ask` (`web/src/app/(main)/ask/page.tsx`); nav updated. Palette and keyframes in `web/src/app/globals.css`.
+In progress: nothing.
+Next: customer "Review invitations" step; stage 8 memo.
+Decisions: the landing page names only what the code does. Depth 08 (memo) and the hero's "one memo" describe stage 8, which is not built yet: build it or soften those lines before the demo.
+Blocked on: nothing.
+Contracts touched: none.
+
+Libraries and tools to credit in the README (rule 7), added: VT323 font (Google Fonts, SIL Open Font License), loaded with next/font. Design inspiration: krillion.io (look only).

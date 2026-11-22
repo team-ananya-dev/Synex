@@ -22,7 +22,7 @@ export function Nav() {
   return (
     <nav className="mx-auto flex max-w-[1100px] flex-wrap items-center gap-[22px] px-6 py-3 text-sm">
       <Link href="/" className="text-base font-semibold text-foreground">Synex</Link>
-      <Link href="/" className={color(path === "/" || path.startsWith("/cases"))}>Ask</Link>
+      <Link href="/ask" className={color(path === "/ask" || path.startsWith("/cases"))}>Ask</Link>
       <span className="ml-auto text-[11px] uppercase tracking-[.06em] text-zinc-500">Operator</span>
       <Link href="/operator/approvals" className={`flex items-center gap-1.5 ${color(path.startsWith("/operator/approvals"))}`}>
         Operator queue

@@ -30,3 +30,41 @@ body {
 button:not(:disabled) {
   cursor: pointer;
 }
+
+/* Landing page palette: deep-sea look inspired by krillion.io (colours only; no assets copied). */
+@theme inline {
+  --color-abyss: #050a14;
+  --color-shallow: #101d33;
+  --color-reef: #1b2c47;      /* thin lines */
+  --color-foam: #e8f1ff;      /* main text */
+  --color-drift: #7d93b8;     /* muted text */
+  --color-cyan: #4de3ff;
+  --color-pink: #ff5d8f;
+  --color-gold: #ffd166;
+  --color-violet: #bfa7ff;
+  --color-ember: #ff9f43;
+  --font-pixel: var(--font-vt323);
+}
+
+@keyframes rise {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: .7; }
+  100% { transform: translateY(-110vh); opacity: 0; }
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.glow-cyan { text-shadow: 0 0 18px rgba(77, 227, 255, .45); }
+.glow-pink { text-shadow: 0 0 18px rgba(255, 93, 143, .45); }
+.depth-wash { background: linear-gradient(180deg, #101d33 0%, #0b1526 35%, #050a14 75%); }
+.pixel-grid {
+  background-image: linear-gradient(rgba(27, 44, 71, .35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 44, 71, .35) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble, .cursor { animation: none !important; }
+}
