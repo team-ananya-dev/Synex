@@ -638,7 +638,7 @@ function ResultCard({ sq }: { sq: ResultSubQuestion }) {
         <div className="flex flex-col gap-1 rounded-md bg-hover px-3 py-2.5">
           {sq.summary.sentences.map((s, i) => (
             <span key={i} className="leading-relaxed text-zinc-200">
-              {s.text} {s.cites.map((c) => <span key={c} className="font-mono text-xs text-sky-300">[{c}]</span>)}
+              {s.text.replace(/\s*\[[A-Za-z0-9]+\]/g, "")} {s.cites.map((c) => <span key={c} className="font-mono text-xs text-sky-300">[{c}]</span>)}
             </span>
           ))}
           {sq.summary.dropped_uncited > 0 && (

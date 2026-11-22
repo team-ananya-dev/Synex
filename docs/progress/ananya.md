@@ -178,3 +178,29 @@ Next: run one full case by hand; voice if time; README, architecture diagram, de
 Decisions: one Result tab, Dev's version. To avoid duplicates: Dev, please send a request file in `docs/inbox/ananya/` before editing `web/`; the Result tab is done, do not extend it without telling me.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:46 IST ananya full-run-1
+Done: one full case on my local DB (case fef642d4ebc3): ask, plan, approve plan (panel 2), sourcing, invitations approved, 3 teammate mails in Mailpit, 3 expert answers submitted, stage 7 screened them (2 accepted, 1 redacted), result and cited summary written. 9.5 Crustdata credits, $0.042 model spend, 0 invalid model calls, audit chain intact (304 events). Customer routes (case, responses, result, event stream) scanned for real names, emails and links: clean. Expert answers were TEST text written by Claude for this development check; the demo must use real teammate answers.
+Fixed: the Result tab showed each summary citation twice (text already ended with [ref]); `web/src/app/(main)/cases/[id]/CaseView.tsx` strips the trailing ref from the sentence text.
+Findings for Dev (his files, requests below): (1) the question screen rewrote a question that named a company and dropped the company name, so sourcing never searched it; (2) the Q2 label came out "split" for two answers that do not contradict each other; (3) in dev mode only 2 of 5 sub-questions are sourced but the result lists all 5 as "no accepted answer".
+In progress: nothing.
+Next: Dev's findings; voice if time; README, architecture diagram, demo video.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
+
+## 2026-11-22 15:46 IST ananya findings-note
+Done: wrote the three findings for Dev as a request file `docs/inbox/dev/2026-11-22-ananya-full-run-findings.md` (no edit to his files).
+In progress: nothing.
+Next: push; voice if time; README, architecture diagram, demo video.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
+
+## 2026-11-22 15:54 IST ananya readme-architecture
+Done: `README.md` (what is real and simulated, the eight stages, rules, approvals, audit and cost log, run commands, screens, not built, open questions, credits with scaffolding commands) and `docs/ARCHITECTURE.md` (system diagram, case lifecycle, the eight stages, where code decides versus the model, data and audit trail; Mermaid, renders on GitHub). Every claim was checked against the code. Findings that shaped the text: all model calls use the small model and the large-model setting is unused; the restricted list is empty; no payments at all, only a quoted price.
+In progress: nothing.
+Next: Dev reviews the README (request in `docs/inbox/dev/2026-11-22-ananya-readme-review.md`); demo video; voice only if time.
+Decisions: README drafted by me in full, Dev corrects his parts. The demo video link is not in the README yet.
+Blocked on: Dev, review of the README claims about his modules.
+Contracts touched: none.
