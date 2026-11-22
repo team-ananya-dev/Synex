@@ -100,3 +100,13 @@ Next: customer "Review invitations" step; stage 8 memo.
 Decisions: the toys copy thresholds and the regex from the server; if `s4_people_screen.py` defaults or `RISK` in `s7_response_screen.py` change, update `web/src/components/landing/Toys.tsx`. Stage 8 card (memo) still describes unbuilt work.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:00 IST ananya landing-koi-pond
+Done: replaced the Krillion-style dive with an original koi pond (Ananya: too close to Krillion). `web/src/components/landing/Pond.tsx` draws a pixel pond on one canvas at 1/4 resolution: a wave simulation where the pointer leaves a wake and clicks drop stones; koi with chain bodies that wander, leave wakes and flee the pointer and splashes; lily pads, flowers and duckweed pushed by the pointer and by ripples; reeds that bend away; dragonflies that dart off. `Landing.tsx` sits on top (hero "Drop one question. Watch it ripple out to a whole panel.", eight stages, the two rule toys, why Synex, what's real); buttons and cards drop ripples. Font changed to Pixelify Sans. Removed the krill, HUD, depth ruler, sprites and VT323.
+In progress: nothing.
+Next: customer "Review invitations" step; stage 8 memo.
+Decisions: pond art is drawn in code (inspired by a reference image, nothing copied). Memo stage card still describes unbuilt work.
+Blocked on: nothing.
+Contracts touched: none.
+
+Libraries and tools to credit in the README (rule 7), changed: Pixelify Sans font (Google Fonts, SIL Open Font License) replaces VT323.
