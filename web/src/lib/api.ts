@@ -1,6 +1,7 @@
 // Typed client for the Synex server. Shapes follow contracts/API.md and contracts/EVENTS.md.
 
 export const API_BASE = process.env.NEXT_PUBLIC_SYNEX_API ?? "http://localhost:8000";
+export const MAILPIT_URL = process.env.NEXT_PUBLIC_MAILPIT_URL ?? "http://localhost:8025";
 
 export type CaseState =
   | "DRAFT" | "PLANNED" | "SOURCING" | "AWAITING_APPROVAL" | "COLLECTING"
@@ -189,6 +190,27 @@ export type Submission = {
   answers: { index: number; kind: AnswerKind; text: string; confidence: Confidence | null }[];
 };
 
+// ---- audit trail and cost log (operator) ----
+
+export type AuditEvent = {
+  id: number; case_id: string | null; type: string; payload: Record<string, unknown>;
+  at: string; prev_hash: string; hash: string;
+};
+export type ChainCheck = { ok: boolean; first_bad_event_id: number | null; events_checked: number };
+export type CrustdataCall = {
+  call_id: string; case_id: string | null; purpose: string; endpoint: string; status: number | null;
+  credits: number; latency_ms: number | null; cache_hit: number; error: string | null; created_at: string;
+};
+export type LlmCall = {
+  call_id: string; case_id: string | null; purpose: string; model: string; input_tokens: number | null;
+  output_tokens: number | null; cost_usd: number | null; attempt: number; valid: number | null; error: string | null; created_at: string;
+};
+export type CaseCosts = { crustdata_calls: CrustdataCall[]; llm_calls: LlmCall[]; totals: { crustdata_credits: number; model_usd: number } };
+export type TotalCosts = {
+  crustdata_credits: number; model_usd: number; model_budget_usd: number; model_remaining_usd: number;
+  demo_mode: boolean; crustdata_calls: number; llm_calls: number;
+};
+
 export type SynexEvent = { id: number; type: string; at: string; [field: string]: unknown };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -229,6 +251,14 @@ export const api = {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
     return request<Approval[]>(`/approvals${q.size ? `?${q}` : ""}`);
   },
+  // audit trail and cost log
+  auditEvents: (filters: { case_id?: string; after?: number; limit?: number } = {}) => {
+    const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
+    return request<AuditEvent[]>(`/audit/events${q.size ? `?${q}` : ""}`);
+  },
+  verifyChain: () => request<ChainCheck>("/audit/verify"),
+  caseCosts: (id: string) => request<CaseCosts>(`/cases/${id}/costs`),
+  totalCosts: () => request<TotalCosts>("/costs"),
   // expert page
   getExpertPage: (token: string) => request<ExpertPage>(`/expert/${token}`),
   submitResponses: (token: string, body: Submission) =>

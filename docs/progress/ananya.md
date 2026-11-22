@@ -45,3 +45,16 @@ Next:
 Decisions: one submission per link (answers are never edited). Simulated expert payout `SYNEX_EXPERT_PAYOUT`, default 50, no ledger entry yet.
 Blocked on: Dev, two lines in `server/app/main.py` to serve the expert routes (request file above). Dev, large model price before stage 8.
 Contracts touched: API.md, EVENTS.md, ENUMS.md in the previous commit.
+
+## 2026-11-22 14:27 IST ananya design-pass
+Done: applied the dark design from Ananya's Claude Design mockup ("Synex UI mockups") to the web app.
+- Layout: `web/src/app/layout.tsx` (fonts, dark only), `web/src/app/(main)/layout.tsx` (operator/customer shell, honest footer), `web/src/components/Nav.tsx` (Ask, approval queue with pending count, Mailbox link to Mailpit, Audit trail). Pages moved into the `(main)` route group; URLs unchanged. Expert page has its own narrow layout.
+- Case page `web/src/app/(main)/cases/[id]/CaseView.tsx`: tabs Plan (plan + approve-and-hold card, then sub-question cards with anonymised panel), Live (panel status board, responses received from `response.received` events with no text, live event stream), Ledger (balance, simulated ledger, per-case cost log from `/cases/{id}/costs`).
+- New audit screen `web/src/app/(main)/operator/audit/page.tsx`: `/audit/events` with case and type filters, prev to hash column, Verify chain (`/audit/verify`), Export JSON, cost totals (`/costs`) and per-case cost log. Shared `web/src/components/CostTable.tsx`.
+- Expert page `web/src/app/expert/[token]/ExpertView.tsx`: steps landing (rules, payout, attestations) then answers then review (re-confirm) then thank you.
+- Checked: lint, types, build; every page 200 against the live server.
+In progress: nothing.
+Next: stage 7 response screen, then coverage and screened responses on the Live tab.
+Decisions: left out mockup parts with no backend or that break rules: memo tab, coverage meter, held responses, payouts, voice interview, decline / never-contact buttons, editable To address, in-browser mailbox (we use Mailpit), "revised answer replaces this one" (answers are append-only), "autosaved", "reset prototype data". They come back as their stages are built.
+Blocked on: Dev, expert router in `server/app/main.py` (request in `docs/inbox/dev/`).
+Contracts touched: none.
