@@ -61,13 +61,15 @@ type Blade = { x: number; y: number; len: number; a: number; bend: number; vb: n
 type Fly = { x: number; y: number; tx: number; ty: number; a: number; speed: number; wait: number };
 type Speck = { x: number; y: number; dx: number; dy: number; tone: number };
 
-export function Pond() {
+/** quiet = the calmer version used behind the app pages: fewer fish and pads, no flowers or dragonflies,
+ *  slower fish, a gentler pointer wake, no splash on click, and a much darker shade. The landing page uses the full pond. */
+export function Pond({ quiet = false }: { quiet?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current!;
     const ctx = canvas.getContext("2d", { alpha: false })!;
-    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const calm = quiet || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let W = 0, H = 0;
     let cur = new Float32Array(0), prev = new Float32Array(0);
     let base = new Uint8Array(0);            // water level 0..2 per pixel, 3 = rim
@@ -135,7 +137,7 @@ export function Pond() {
 
       // lily pads cluster at the sides and leave open water in the middle for the words
       pads = [];
-      const n = Math.round((W * H) / 3600);
+      const n = Math.round((W * H) / (quiet ? 9000 : 3600));
       for (let k = 0; k < n; k++) {
         const side = rand();
         const x = side < 0.42 ? rand() * W * 0.26 : side < 0.84 ? W * 0.74 + rand() * W * 0.26 : W * (0.3 + rand() * 0.4);
@@ -143,17 +145,17 @@ export function Pond() {
         const r = 4 + rand() * 7;
         if (pads.some((p) => Math.hypot(p.x - x, p.y - y) < (p.r + r) * 0.8)) continue;
         pads.push({ x, y, r, dx: 0, dy: 0, vx: 0, vy: 0, notch: rand() * Math.PI * 2, tone: (rand() * 3) | 0,
-          flower: rand() < 0.16 ? 1 : rand() < 0.05 ? 2 : 0, stem: rand() * Math.PI * 2 });
+          flower: quiet ? 0 : rand() < 0.16 ? 1 : rand() < 0.05 ? 2 : 0, stem: rand() * Math.PI * 2 });
       }
 
       // koi: a few big ones and a little school of small red fish
       koi = [];
-      const big = Math.max(3, Math.round((W * H) / 36000));
-      for (let k = 0; k < big + 4; k++) {
+      const big = quiet ? 2 : Math.max(3, Math.round((W * H) / 36000));
+      for (let k = 0; k < big + (quiet ? 1 : 4); k++) {
         const small = k >= big;
         const x = W * (0.2 + rand() * 0.6), y = H * (0.15 + rand() * 0.7), a = rand() * Math.PI * 2;
         const size = small ? 0.55 + rand() * 0.15 : 1 + rand() * 0.45;
-        koi.push({ x, y, a, base: small ? 0.16 + rand() * 0.06 : 0.1 + rand() * 0.05, boost: 0, wander: 0, phase: rand() * 10, size,
+        koi.push({ x, y, a, base: (small ? 0.16 + rand() * 0.06 : 0.1 + rand() * 0.05) * (quiet ? 0.6 : 1), boost: 0, wander: 0, phase: rand() * 10, size,
           pattern: small ? "rrrrrrcrrr" : PATTERNS[k % PATTERNS.length],
           seg: Array.from({ length: PROFILE.length }, (_, i) => ({ x: x - Math.cos(a) * i * 1.7 * size, y: y - Math.sin(a) * i * 1.7 * size })) });
       }
@@ -162,15 +164,15 @@ export function Pond() {
       blades = [];
       const clumps: [number, number][] = [[0.05, 0.97], [0.95, 0.5], [0.9, 0.99]];
       for (const [cx, cy] of clumps)
-        for (let k = 0; k < 6 + rand() * 4; k++)
+        for (let k = 0; k < (quiet ? 3 : 6) + rand() * (quiet ? 2 : 4); k++)
           blades.push({ x: cx * W + (rand() - 0.5) * 16, y: cy * H + (rand() - 0.5) * 6, len: 12 + rand() * 22,
             a: -Math.PI / 2 + (rand() - 0.5) * 0.9, bend: 0, vb: 0, flower: rand() < 0.1 });
 
-      flies = Array.from({ length: 2 }, () => {
+      flies = Array.from({ length: quiet ? 0 : 2 }, () => {
         const x = rand() * W, y = rand() * H;
         return { x, y, tx: x, ty: y, a: 0, speed: 0.4, wait: 0 };
       });
-      specks = Array.from({ length: Math.round((W * H) / 3000) }, () => {
+      specks = Array.from({ length: Math.round((W * H) / (quiet ? 8000 : 3000)) }, () => {
         const nearPad = pads[(rand() * pads.length) | 0];
         const x = nearPad && rand() < 0.7 ? nearPad.x + (rand() - 0.5) * 30 : rand() * W;
         const y = nearPad && rand() < 0.7 ? nearPad.y + (rand() - 0.5) * 30 : rand() * H;
@@ -191,7 +193,7 @@ export function Pond() {
       // pointer wake
       if (pointer.active && pointer.px > -900) {
         const sp = Math.hypot(pointer.x - pointer.px, pointer.y - pointer.py);
-        if (sp > 0.4 && t % 2 === 0) disturb(pointer.x, pointer.y, 1.2, Math.min(sp, 4) * 2.2);
+        if (sp > 0.4 && t % 2 === 0) disturb(pointer.x, pointer.y, 1.2, Math.min(sp, 4) * (quiet ? 0.9 : 2.2));
       }
       pointer.px = pointer.x;
       pointer.py = pointer.y;
@@ -413,6 +415,7 @@ export function Pond() {
     const onMove = (e: PointerEvent) => { pointer.x = e.clientX / SCALE; pointer.y = e.clientY / SCALE; pointer.active = true; };
     const onLeave = () => { pointer.active = false; pointer.px = -999; };
     const onDown = (e: PointerEvent) => {
+      if (quiet) return; // clicks on app pages are for buttons, not stones
       const x = e.clientX / SCALE, y = e.clientY / SCALE;
       disturb(x, y, 1.5, 16);
       scares.push({ x, y, t: frame });
@@ -443,7 +446,7 @@ export function Pond() {
       window.removeEventListener("pond:drop", onDrop);
       window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [quiet]);
 
   return (
     <>
@@ -457,7 +460,11 @@ export function Pond() {
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10"
-        style={{ background: "radial-gradient(ellipse 55% 70% at 50% 50%, rgba(2,4,8,.6), rgba(2,4,8,.25) 70%, rgba(2,4,8,.15))" }}
+        style={{
+          background: quiet
+            ? "radial-gradient(ellipse 70% 80% at 50% 45%, rgba(2,4,8,.9), rgba(2,4,8,.78) 65%, rgba(2,4,8,.68))"
+            : "radial-gradient(ellipse 55% 70% at 50% 50%, rgba(2,4,8,.6), rgba(2,4,8,.25) 70%, rgba(2,4,8,.15))",
+        }}
       />
     </>
   );
