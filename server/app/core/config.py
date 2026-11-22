@@ -43,3 +43,13 @@ def crustdata_key() -> str:
     if not key:
         raise RuntimeError("CRUSTDATA_API_KEY is not set in .env")
     return key
+
+
+def dev_max_subquestions() -> int | None:
+    """Sub-questions sourced per case while developing. None in demo mode."""
+    return None if demo_mode() else int(os.environ.get("SYNEX_DEV_SUBQUESTIONS", "2"))
+
+
+def max_companies_per_subquestion() -> int:
+    """Companies searched per sub-question. 3 in demo mode to bound credits, 1 while developing."""
+    return 3 if demo_mode() else int(os.environ.get("SYNEX_DEV_COMPANIES", "1"))

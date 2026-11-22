@@ -65,3 +65,28 @@ CREATE TRIGGER IF NOT EXISTS llm_calls_no_update BEFORE UPDATE ON llm_calls
 BEGIN SELECT RAISE(ABORT, 'llm_calls is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS llm_calls_no_delete BEFORE DELETE ON llm_calls
 BEGIN SELECT RAISE(ABORT, 'llm_calls is append-only'); END;
+
+-- Case job runner. cases is the only mutable table here; every state change is also an audit event.
+CREATE TABLE IF NOT EXISTS cases (
+    id             TEXT PRIMARY KEY,
+    question       TEXT NOT NULL,
+    state          TEXT NOT NULL,
+    refusal_reason TEXT,
+    params         TEXT NOT NULL,        -- JSON: min_left, max_left, min_years
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+);
+
+-- One row per finished stage. A rerun adds a row; readers take the latest per stage.
+CREATE TABLE IF NOT EXISTS stage_results (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id     TEXT NOT NULL,
+    stage       TEXT NOT NULL,
+    result      TEXT NOT NULL,           -- JSON
+    created_at  TEXT NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS stage_results_no_update BEFORE UPDATE ON stage_results
+BEGIN SELECT RAISE(ABORT, 'stage_results is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS stage_results_no_delete BEFORE DELETE ON stage_results
+BEGIN SELECT RAISE(ABORT, 'stage_results is append-only'); END;
