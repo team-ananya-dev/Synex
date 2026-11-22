@@ -6,7 +6,7 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from ..actions import ledger
+from ..actions import ledger, queue
 from ..core import config
 
 
@@ -92,6 +92,8 @@ def redact_event(conn, case_id: str, type_: str, payload: dict) -> dict:
                 "persona": payload["persona"], "subquestion_indices": payload["subquestion_indices"]}
     if type_ == "mail.sent":
         return {"outreach_id": payload["outreach_id"]}
+    if type_ in ("approval.approved", "approval.rejected", "mail.blocked", "mail.failed"):
+        return {"outreach_id": payload["outreach_id"]}
     return payload
 
 
@@ -122,6 +124,7 @@ def customer_view(conn, case_id: str) -> dict:
         "approval": {k: params[k] for k in ("panel_size", "budget", "hold") if k in params} or None,
         "screening": screening,
         "panel": {idx: [card(case_id, p, names) for p in v["ranked"]] for idx, v in final.items()},
-        "outreach": outreach, "ledger": {"balance": ledger.balance(conn, case_id), "entries": ledger.entries(conn, case_id)},
+        "outreach": outreach, "invites": queue.invites(conn, case_id),
+        "ledger": {"balance": ledger.balance(conn, case_id), "entries": ledger.entries(conn, case_id)},
         "cost": costs(conn, case_id),
     }

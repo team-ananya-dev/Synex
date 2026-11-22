@@ -5,6 +5,7 @@ from .core import config
 from .actions.routes import router as approvals_router
 from .jobs.audit_routes import router as audit_router
 from .jobs.routes import router as cases_router
+from .routes.expert import router as expert_router
 
 app = FastAPI(title="Synex")
 # the Next.js app runs on another port in development
@@ -13,6 +14,7 @@ app.add_middleware(CORSMiddleware, allow_origins=config.web_origins(),
 app.include_router(cases_router)
 app.include_router(approvals_router)
 app.include_router(audit_router)
+app.include_router(expert_router)
 
 
 @app.get("/health")

@@ -7,7 +7,7 @@ from app.actions import ledger, queue
 from app.core import db
 from tests.test_runner import api, events, start  # noqa: F401  (fixtures and helpers)
 
-SECRETS = ["Quentin", "Zephyr", "example.test", "Secret headline", "Pune", "linkedin", "@"]
+SECRETS = ["Quentin", "Zephyr", "example.test", "Secret headline", "Pune", "linkedin", "@", "/expert/", "gmail"]
 
 
 def customer_text(client, cid):

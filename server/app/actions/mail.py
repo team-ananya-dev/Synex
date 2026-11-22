@@ -7,7 +7,8 @@ from ..core import config
 
 # Hard-coded on purpose: teammates only. Lower case.
 ALLOWLIST = ("devsatish08@gmail.com", "ananyashankar0836@gmail.com")
-TEAM_MEMBERS = ("dev", "ananya")  # only these may approve or reject
+TEAM_MEMBERS = ("dev", "ananya")  # registered team members
+APPROVERS = TEAM_MEMBERS + ("customer",)  # the customer approves invitations for their own case
 SENDER = "Synex <outreach@synex.local>"
 
 

@@ -2,7 +2,7 @@
 
 Phase 1 (run_case) screens the question and plans, then waits at PLANNED for the customer to
 approve the plan and the spend. Phase 2 (continue_case) sources, screens, ranks, enriches and
-drafts outreach, then waits at AWAITING_APPROVAL for a team member to approve each email.
+drafts outreach, then waits at AWAITING_APPROVAL for the customer to review the anonymised invitations and approve them.
 Every stage emits stage.started and stage.done (with its result) on the audit chain; the stream
 routes replay those events to the browser.
 """
@@ -205,4 +205,4 @@ def _source_and_draft(conn, case_id: str) -> None:
     run_stage(conn, case_id, "s6_outreach_writer", lambda: s6_outreach_writer.write_drafts(
         conn, case_id, work, {idx: r["ranked"] for idx, r in final.items()}, screens, company_names, per_sq))
     set_state(conn, case_id, "AWAITING_APPROVAL")
-    append_event(conn, case_id, "job.paused", {"reason": "outreach drafts are waiting for approval"})
+    append_event(conn, case_id, "job.paused", {"reason": "the invitations are waiting for the customer to approve them"})

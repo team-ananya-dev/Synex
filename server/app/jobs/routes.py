@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from ..actions import ledger
+from ..actions import ledger, queue
 from ..core import config, db
 from ..core.events import append_event
 from . import runner, views
@@ -88,6 +88,32 @@ def approve_plan(case_id: str, body: PlanApproval, tasks: BackgroundTasks):
                                                       "hold": quote["hold_amount"], "currency": quote["currency"]})
         tasks.add_task(runner.continue_case, case_id)
         return {"id": case_id, "state": "PLANNED", "hold": quote}
+    finally:
+        conn.close()
+
+
+class OutreachApproval(BaseModel):
+    refs: list[str] = Field(min_length=1)   # the experts to invite (their `ref` from `invites`); every other waiting invitation is dropped
+
+
+@router.post("/customer/cases/{case_id}/approve-outreach")
+def approve_outreach(case_id: str, body: OutreachApproval):
+    """The customer's click on the anonymised invitations. Listed experts are invited, the rest are dropped, and the case
+    starts collecting. Each invitation is its own logged approval and goes out through the teammate-only mail gate."""
+    conn = db.connect()
+    try:
+        case = conn.execute("SELECT state FROM cases WHERE id=?", (case_id,)).fetchone()
+        if not case:
+            raise HTTPException(404, "no such case")
+        if case["state"] != "AWAITING_APPROVAL":
+            raise HTTPException(409, f"the case is {case['state']}, not waiting for invitation approval")
+        try:
+            result = queue.approve_batch(conn, case_id, body.refs)
+        except queue.QueueError as e:
+            raise HTTPException(e.status, e.message)
+        if result["sent"]:
+            runner.set_state(conn, case_id, "COLLECTING")
+        return {**result, "state": "COLLECTING" if result["sent"] else "AWAITING_APPROVAL"}
     finally:
         conn.close()
 
