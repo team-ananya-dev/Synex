@@ -51,4 +51,4 @@ Server (Dev). Setup once, then run from `server/`:
 - Tests: `cd server && .venv/bin/python -m pytest -q`
 - Demo and finals mode: set `SYNEX_DEMO=1` (no dev cache, no dev result limits).
 
-Web (Ananya): `TBD`
+Web (Ananya): `cd web && npm install && npm run dev` (http://localhost:3000; needs the server on 8000). Checks: `cd web && npm run lint && npx tsc --noEmit && npm run build`
