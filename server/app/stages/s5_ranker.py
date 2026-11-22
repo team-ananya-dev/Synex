@@ -41,20 +41,20 @@ def facts_for(c: dict) -> str:
     """The only text the model sees about a candidate; evidence must be quoted from it."""
     parts = [f"title: {c['title']}", f"function: {c['function'] or 'unknown'}", f"headline: {c['headline'] or ''}",
              f"tenure: {c['tenure_months']} months", f"left: {c['end_date']}",
-             f"now at: {', '.join(c['current_employers']) or 'none listed'}"]
+             f"now at: {', '.join(e for e in c['current_employers'] if e) or 'none listed'}"]
     if c.get("crustdata_fit"):
         parts.append(f"search relevance tier: {c['crustdata_fit']}")
     if c.get("role_description"):
         parts.append(f"role description: {c['role_description']}")
     if c.get("skills"):
-        parts.append(f"skills: {', '.join(c['skills'])}")
+        parts.append(f"skills: {', '.join(k for k in c['skills'] if k)}")
     return "; ".join(parts)
 
 
 def evidence_source(c: dict) -> str:
     """Text a snippet may be quoted from: what says what the person did. Tenure, dates and employers do not count."""
     return " | ".join(str(x) for x in [c["title"], c["function"], c["headline"], c.get("role_description"),
-                                      ", ".join(c.get("skills") or [])] if x).lower()
+                                      ", ".join(k for k in c.get("skills") or [] if k)] if x).lower()
 
 
 def fit_label(score: int) -> str:

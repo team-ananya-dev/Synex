@@ -52,6 +52,23 @@ def get_case(case_id: str):
     return _read(views.operator_view, case_id)
 
 
+@router.post("/cases/{case_id}/retry")
+def retry_case(case_id: str, tasks: BackgroundTasks):
+    """Operator: continue a FAILED case from its last finished stage. Finished stages are reused, not re-run."""
+    conn = db.connect()
+    try:
+        case = conn.execute("SELECT state FROM cases WHERE id=?", (case_id,)).fetchone()
+        if not case:
+            raise HTTPException(404, "no such case")
+        if case["state"] != "FAILED":
+            raise HTTPException(409, f"only a FAILED case can be retried; this one is {case['state']}")
+        append_event(conn, case_id, "case.retried", {"from_state": "FAILED"})
+    finally:
+        conn.close()
+    tasks.add_task(runner.retry_case, case_id)
+    return {"id": case_id, "retrying": True}
+
+
 @router.get("/customer/cases")
 def list_customer_cases():
     return list_cases()

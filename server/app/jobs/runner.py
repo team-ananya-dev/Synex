@@ -48,6 +48,13 @@ class StageFailed(RuntimeError):
 
 
 def run_stage(conn, case_id: str, stage: str, fn):
+    """Run one stage, or reuse its stored result if it already finished (after a crash or a retry), so no
+    finished stage spends credits or sends anything twice."""
+    done = conn.execute("SELECT result FROM stage_results WHERE case_id=? AND stage=? ORDER BY id DESC LIMIT 1",
+                        (case_id, stage)).fetchone()
+    if done:
+        append_event(conn, case_id, "stage.reused", {"stage": stage})
+        return json.loads(done["result"])
     append_event(conn, case_id, "stage.started", {"stage": stage})
     try:
         result = fn()
@@ -72,6 +79,16 @@ def _guarded(case_id: str, phase) -> None:
         set_state(conn, case_id, "FAILED")
     finally:
         conn.close()
+
+
+def retry_case(case_id: str) -> None:
+    """Continue a stopped case from its last finished stage: phase 2 if the plan was approved, else phase 1."""
+    conn = db.connect()
+    try:
+        params = json.loads(conn.execute("SELECT params FROM cases WHERE id=?", (case_id,)).fetchone()["params"])
+    finally:
+        conn.close()
+    _guarded(case_id, _source_and_draft if "panel_size" in params else _plan)
 
 
 def run_case(case_id: str) -> None:

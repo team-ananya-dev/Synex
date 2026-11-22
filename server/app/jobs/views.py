@@ -51,7 +51,7 @@ def _company_names(stages: dict) -> dict:
 def card(case_id: str, p: dict, company_names: dict) -> dict:
     """An anonymised expert card: what they did and why they fit, with no name, headline, link or city."""
     quotable = " | ".join(str(x).lower() for x in [p.get("title"), p.get("function"), p.get("role_description"),
-                                                   ", ".join(p.get("skills") or [])] if x)
+                                                   ", ".join(k for k in p.get("skills") or [] if k)] if x)
     return {
         "ref": expert_ref(case_id, p["person_id"]), "role": p["title"], "company": company_names.get(str(p["company_id"])),
         "tenure_months": p["tenure_months"], "left_year": (p.get("end_date") or "")[:4] or None,

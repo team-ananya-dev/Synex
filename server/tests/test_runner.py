@@ -207,3 +207,31 @@ def test_unknown_case_is_404_and_short_question_rejected(api):
     client, _ = api
     assert client.get("/cases/nope").status_code == 404
     assert client.post("/cases", json={"question": "hi"}).status_code == 422
+
+
+def test_missing_employer_name_does_not_break_ranking():
+    from app.stages.s5_ranker import evidence_source, facts_for
+    c = {"title": "Ops", "function": None, "headline": "h", "tenure_months": 12, "end_date": "2025-01-01",
+         "current_employers": [None, "Acme"], "skills": [None, "Logistics"]}
+    assert "now at: Acme" in facts_for(c) and "logistics" in evidence_source(c)
+
+
+def test_failed_case_retries_from_the_last_finished_stage(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(lambda r: httpx.Response(500, text="down")))
+    cid = start(client)
+    assert client.get(f"/cases/{cid}").json()["state"] == "FAILED"
+    SEEN.clear()
+    monkeypatch.setattr(runner, "crustdata_transport", httpx.MockTransport(crustdata))
+    assert client.post(f"/cases/{cid}/retry").status_code == 200
+    view = client.get(f"/cases/{cid}").json()
+    assert view["state"] == "AWAITING_APPROVAL"
+    evs = db_events(cid)
+    assert sum(1 for e in evs if e["type"] == "llm.call" and e["purpose"] == "decompose_question") == 1   # plan not redone
+    assert client.post(f"/cases/{cid}/retry").status_code == 409                    # only FAILED cases
+    # a second pass over a finished case reuses every stage and drafts nothing twice
+    runner.retry_case(cid)
+    reused = [e["stage"] for e in db_events(cid) if e["type"] == "stage.reused"]
+    assert reused == ["s3_sourcer", "s4_people_screen", "s5_ranker", "s5b_enrich_rerank", "s6_outreach_writer"]
+    from app.core import db
+    assert db.connect().execute("SELECT COUNT(*) c FROM outreach WHERE case_id=?", (cid,)).fetchone()["c"] == 1
