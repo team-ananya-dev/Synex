@@ -1,8 +1,8 @@
 # Synex
 
-> **An expert network, rebuilt as software.** Ask a business question; get answers from compliance-cleared former insiders, every claim traced to the record it came from, in hours instead of weeks of scheduling calls.
+> **An expert network, rebuilt as software.** Ask a business question; get answers from compliance-cleared former insiders, every claim traced to the record it came from, without scheduling a single call.
 
-An expert network, rebuilt as software. A customer asks a business question. Synex finds former employees in live people data, screens every person and every answer with fixed compliance rules, invites a panel by email (to teammates only, in this competition), collects their answers, and returns them with a count of independent sources, a confidence level and a short summary where every sentence cites an answer.
+A customer asks a business question. Synex finds former employees in live people data, screens every person and every answer with fixed compliance rules, invites a panel by email (to teammates only, in this competition), collects their answers, and returns them with a count of independent sources, a confidence level and a short summary where every sentence cites an answer.
 
 Built at ContextCon 05 (theme "Services, Replaced") by Dev and Ananya.
 
