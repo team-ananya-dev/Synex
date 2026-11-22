@@ -18,20 +18,22 @@ function Slider({ label, value, min, max, onChange, unit }: {
   label: string; value: number; min: number; max: number; onChange: (n: number) => void; unit: string;
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="flex items-baseline justify-between font-pixel text-sm tracking-wider text-mist">
+    <label className="flex flex-col gap-2.5">
+      <span className="flex items-baseline justify-between text-xs text-mist">
         {label}
-        <span className="text-lg text-amber">{value} {unit}</span>
+        <span className="font-mono text-sm text-cream">{value} {unit}</span>
       </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="pixel-range w-full"
-      />
+      <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="pixel-range w-full" />
     </label>
+  );
+}
+
+function Verdict({ ok, children }: { ok: boolean; children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 text-sm font-medium">
+      <span className={`h-2 w-2 rounded-full ${ok ? "bg-leaf" : "bg-koi"}`} />
+      <span className={ok ? "text-leaf" : "text-koi"}>{children}</span>
+    </p>
   );
 }
 
@@ -41,43 +43,36 @@ export function PeopleScreenToy() {
   const [current, setCurrent] = useState(false);
 
   const rules: [string, boolean, string][] = [
-    ["not a current employee", !current, current ? "still lists the company as a current employer" : "no current role at the company"],
-    ["cooling-off", !current && left >= MIN_LEFT, left < MIN_LEFT ? `left ${left} months ago, less than ${MIN_LEFT}` : `left at least ${MIN_LEFT} months ago`],
-    ["freshness", left <= MAX_LEFT, left > MAX_LEFT ? `left ${left} months ago, more than ${MAX_LEFT}` : `within ${MAX_LEFT} months`],
-    ["minimum tenure", tenure >= MIN_TENURE, tenure < MIN_TENURE ? `${tenure} months there, below ${MIN_TENURE}` : `${tenure} months there`],
+    ["Not a current employee", !current, current ? "still lists the company as a current employer" : "no current role at the company"],
+    ["Cooling-off", !current && left >= MIN_LEFT, left < MIN_LEFT ? `left ${left} months ago, less than ${MIN_LEFT}` : `left at least ${MIN_LEFT} months ago`],
+    ["Freshness", left <= MAX_LEFT, left > MAX_LEFT ? `left ${left} months ago, more than ${MAX_LEFT}` : `within ${MAX_LEFT} months`],
+    ["Minimum tenure", tenure >= MIN_TENURE, tenure < MIN_TENURE ? `${tenure} months there, below ${MIN_TENURE}` : `${tenure} months there`],
   ];
   const pass = rules.every(([, ok]) => ok);
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Slider label="left the company" value={left} min={0} max={36} unit="mo ago" onChange={setLeft} />
-        <Slider label="time there" value={tenure} min={0} max={60} unit="mo" onChange={setTenure} />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Slider label="Left the company" value={left} min={0} max={36} unit="months ago" onChange={setLeft} />
+        <Slider label="Time there" value={tenure} min={0} max={60} unit="months" onChange={setTenure} />
       </div>
       <button
         onClick={() => setCurrent((c) => !c)}
-        className={`w-fit border-2 px-3 py-1 font-pixel text-sm tracking-wider transition ${current ? "border-koi text-koi" : "border-rim text-mist hover:text-cream"}`}
+        className={`w-fit rounded-full border px-3 py-1 text-xs transition ${current ? "border-koi/60 text-koi" : "border-white/15 text-mist hover:text-cream"}`}
       >
-        {current ? "■" : "□"} still works there
+        {current ? "✓ " : ""}Still works there
       </button>
-      <div className="relative h-16 overflow-hidden border-2 border-rim bg-pond">
-        {/* the reef: a fish swims through when every rule passes, and bounces off when one fails */}
-        <div className="absolute top-0 bottom-0 left-1/2 w-3 -translate-x-1/2 bg-[repeating-linear-gradient(180deg,#2a8746_0_6px,transparent_6px_10px)]" />
-        <div key={`${pass}-${left}-${tenure}-${current}`} className={`absolute top-1/2 -translate-y-1/2 ${pass ? "swim-through" : "bounce-off"}`}>
-          <span className={`font-pixel text-2xl ${pass ? "text-amber" : "text-koi"}`}>{"><>"}</span>
-        </div>
-      </div>
-      <ul className="flex flex-col gap-1 text-sm">
+      <ul className="flex flex-col divide-y divide-white/8 rounded-lg border border-white/8 text-sm">
         {rules.map(([name, ok, why]) => (
-          <li key={name} className={ok ? "text-cream" : "text-koi"}>
-            {ok ? "✓" : "✗"} {name} <span className="text-mist">· {why}</span>
+          <li key={name} className="flex items-baseline gap-3 px-3 py-2">
+            <span className={ok ? "text-leaf" : "text-koi"}>{ok ? "✓" : "✗"}</span>
+            <span className="text-cream">{name}</span>
+            <span className="ml-auto text-right text-xs text-mist">{why}</span>
           </li>
         ))}
       </ul>
-      <p className={`font-pixel text-2xl tracking-wider ${pass ? "text-leaf" : "text-koi"}`}>
-        {pass ? "Passes the screen" : "Filtered out"}
-      </p>
-      <p className="text-xs text-mist">Same thresholds as the server&apos;s people screen (default settings), run in your browser.</p>
+      <Verdict ok={pass}>{pass ? "Passes the people screen" : "Filtered out, with the reason shown"}</Verdict>
+      <p className="text-xs text-mist">Same thresholds as the server&apos;s people screen (default settings).</p>
     </div>
   );
 }
@@ -103,20 +98,19 @@ export function LeakRuleToy() {
         onChange={(e) => setText(e.target.value)}
         rows={3}
         maxLength={600}
-        className="w-full resize-none border-2 border-rim bg-pond p-3 text-sm leading-relaxed text-cream outline-none focus:border-amber"
-        placeholder="Type an expert's answer…"
+        className="w-full resize-none rounded-lg border border-white/10 bg-white/[.03] p-3 text-sm leading-relaxed text-cream outline-none focus:border-white/30"
+        placeholder="Type an expert's answer"
       />
-      <p className="min-h-[3.5rem] border-2 border-rim bg-pond/60 p-3 text-sm leading-relaxed text-mist">
+      <p className="min-h-[3.5rem] rounded-lg border border-white/8 bg-white/[.02] p-3 text-sm leading-relaxed text-mist">
         {parts.map((p, i) => p.hit
-          ? <mark key={i} className="bg-koi/25 px-0.5 text-koi">{p.t}</mark>
+          ? <mark key={i} className="rounded bg-koi/20 px-0.5 text-koi">{p.t}</mark>
           : <span key={i}>{p.t}</span>)}
       </p>
-      <p className={`font-pixel text-2xl tracking-wider ${hits.length ? "text-amber" : "text-leaf"}`}>
-        {hits.length ? `Held for a person · ${hits.length} flag${hits.length > 1 ? "s" : ""}` : "Clear · on to the model screen"}
-      </p>
+      <Verdict ok={!hits.length}>
+        {hits.length ? `Held for a person: ${hits.length} flagged phrase${hits.length > 1 ? "s" : ""}` : "Clear: passed on to the model screen"}
+      </Verdict>
       <p className="text-xs text-mist">
-        This runs only the code rule, in your browser. On the server a model screen also reads every answer, and its
-        quotes are checked in code.
+        This runs only the code rule. On the server a model also reads every answer, and its quotes are checked in code.
       </p>
     </div>
   );

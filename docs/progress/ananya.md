@@ -120,3 +120,13 @@ Blocked on: nothing.
 Contracts touched: none.
 
 Libraries and tools to credit in the README (rule 7), added: Silkscreen font (Google Fonts, SIL Open Font License).
+
+## 2026-11-22 15:10 IST ananya landing-professional
+Done: landing typography made minimal and professional (Ananya: "not a game"). Headlines in Instrument Serif with italic accents, body and buttons in Geist, small labels in Geist Mono; frosted-glass panels with thin borders; rounded pill buttons; calmer, plainer copy ("One question. Answers from the people who were there."). The two rule toys restyled to match. Removed Pixelify Sans, Silkscreen and every pixel-style class. The koi pond background is unchanged. Files: `web/src/components/landing/Landing.tsx`, `Toys.tsx`, `web/src/app/page.tsx`, `web/src/app/globals.css`.
+In progress: nothing.
+Next: push; customer "Review invitations" step; stage 8 memo.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
+
+Libraries and tools to credit in the README (rule 7), changed: Instrument Serif (Google Fonts, SIL Open Font License) replaces Pixelify Sans and Silkscreen.

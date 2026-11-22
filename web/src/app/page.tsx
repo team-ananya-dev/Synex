@@ -1,14 +1,13 @@
-import { Pixelify_Sans, Silkscreen } from "next/font/google";
+import { Instrument_Serif } from "next/font/google";
 import { Landing } from "@/components/landing/Landing";
 
 // Landing page over a live pixel koi pond (web/src/components/landing/).
-// Silkscreen for the big display type, Pixelify Sans for labels and buttons.
-const pixel = Pixelify_Sans({ subsets: ["latin"], variable: "--font-pixelify" });
-const display = Silkscreen({ weight: ["400", "700"], subsets: ["latin"], variable: "--font-silkscreen" });
+// Instrument Serif for headlines; body and controls use Geist from the root layout.
+const serif = Instrument_Serif({ weight: "400", style: ["normal", "italic"], subsets: ["latin"], variable: "--font-instrument" });
 
 export default function Home() {
   return (
-    <div className={`${pixel.variable} ${display.variable}`}>
+    <div className={serif.variable}>
       <Landing />
     </div>
   );
