@@ -296,12 +296,36 @@ export const api = {
   verifyChain: () => request<ChainCheck>("/audit/verify"),
   caseCosts: (id: string) => request<CaseCosts>(`/cases/${id}/costs`),
   totalCosts: () => request<TotalCosts>("/costs"),
+  // stage 8 result
+  result: (id: string) => request<CaseResult>(`/customer/cases/${id}/result`),
+  writeSummary: (id: string) => request<CaseResult>(`/customer/cases/${id}/result/summary`, { method: "POST" }),
   // expert page
   getExpertPage: (token: string) => request<ExpertPage>(`/expert/${token}`),
   submitResponses: (token: string, body: Submission) =>
     request<{ received: { response_id: string; subquestion_index: number; kind: AnswerKind }[] }>(
       `/expert/${token}/responses`, { method: "POST", body: JSON.stringify(body) },
     ),
+};
+
+// Stage 8 result (contracts/2026-11-22-dev-results.md). Customer-safe: no names, links, cities or person ids.
+export type ResultAnswer = {
+  ref: string; response_id: string; role: string | null; company: string | null;
+  verdict: "accepted" | "redacted"; text: string; confidence: string | null; mode: string;
+};
+export type ResultSubQuestion = {
+  index: number; text: string; status: "answered" | "no accepted answer";
+  coverage: { received: number; pending: number; accepted: number; redacted: number; held: number; rejected: number };
+  answers: ResultAnswer[];
+  independent_sources: number;
+  groups: { refs: string[]; evidence: string }[];
+  independence_unchecked: { ref: string; missing: string[] }[];
+  label: string | null; label_basis: "code" | "model";
+  confidence: "High" | "Medium" | "Low" | null;
+  summary: null | { sentences: { text: string; cites: string[] }[]; dropped_uncited: number; llm_call_id: string };
+};
+export type CaseResult = {
+  case_id: string; question: string; state: CaseState; computed_at: string;
+  subquestions: ResultSubQuestion[]; summary_status: "not written" | "written" | "stale";
 };
 
 export type Audience = "customer" | "operator";

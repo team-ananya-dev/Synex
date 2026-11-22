@@ -56,5 +56,6 @@ const KNOWN_TYPES = [
   "approval.requested", "approval.approved", "approval.rejected",
   "mail.sent", "mail.blocked", "mail.failed",
   "outreach.batch_approved",
-  "response.received", "response.screened",
+  "response.received", "response.screened", "result.summary_written",
+  "stage.reused", "case.retried", "enrich.skipped",
 ];
