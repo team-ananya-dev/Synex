@@ -20,9 +20,11 @@ from ..core.events import append_event
 from ..jobs import runner
 from ..stages import s7_response_screen
 from .responses import router as responses_router
+from ..report.routes import router as report_router
 
 router = APIRouter()
-router.include_router(responses_router)  # screened responses ride on this router, so main.py needs no change
+router.include_router(responses_router)
+router.include_router(report_router)  # screened responses ride on this router, so main.py needs no change
 
 # Simulated payout shown to the expert. A policy setting, not a result; no money moves.
 PAYOUT_PER_ACCEPTED_ANSWER = float(os.environ.get("SYNEX_EXPERT_PAYOUT", "50"))

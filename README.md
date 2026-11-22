@@ -156,6 +156,8 @@ After submitting, the expert sees what happened to each answer and why, includin
 
 Every state change, approval, screen verdict, mail event and model or Crustdata call is an event in a hash-chained, append-only table. The Audit trail page has a button that recomputes the whole chain and names the first changed event. The cost log lists every model call with tokens and dollars and every Crustdata call with credits. A per-case Crustdata credit cap and a $25 model budget are enforced in code.
 
+**Client report (PDF).** The Result tab has a "Download report (PDF)" button. One click writes the per-sub-question summaries and a short executive overview if they are missing (small model, every sentence must cite an answer or it is dropped), then builds a 9-page A4 report the client can use on its own: a cover with the question and key numbers, an executive summary (headline, key findings with citations, an evidence table with sources, agreement and confidence, where the evidence is thin, suggested next questions), the findings for each sub-question with the experts' own answers, and appendices for the method with real numbers, the experts who answered (anonymised), people screening and why people were removed, the audit chain check with hashes, every model and Crustdata call with its cost, and limitations. It states plainly that in this build the answers come from team members playing the candidates. Code: `server/app/report/`. A report with no overview (model down) is still produced.
+
 ## 3. What comes next
 
 | Next | Why |
@@ -239,11 +241,11 @@ Written from empty folders during the build. `CLAUDE.md`, `.claude/` (three help
 
 ### Credits
 
-**Backend (pip):** [FastAPI](https://github.com/fastapi/fastapi), [Uvicorn](https://github.com/encode/uvicorn), [httpx](https://github.com/encode/httpx), [pydantic](https://github.com/pydantic/pydantic) (a FastAPI dependency), [pytest](https://github.com/pytest-dev/pytest), the [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python). Environment management with [uv](https://github.com/astral-sh/uv).
+**Backend (pip):** [FastAPI](https://github.com/fastapi/fastapi), [Uvicorn](https://github.com/encode/uvicorn), [httpx](https://github.com/encode/httpx), [pydantic](https://github.com/pydantic/pydantic) (a FastAPI dependency), [pytest](https://github.com/pytest-dev/pytest), [ReportLab](https://github.com/MrBitBucket/reportlab-mirror) (builds the PDF report), [pypdf](https://github.com/py-pdf/pypdf) (reads the PDF in tests), the [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python). Environment management with [uv](https://github.com/astral-sh/uv).
 
 **Frontend (npm):** [Next.js](https://github.com/vercel/next.js) 16.4.6, [React](https://github.com/facebook/react) 19.3.0, [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) 4.3.3, [TypeScript](https://github.com/microsoft/TypeScript), [ESLint](https://github.com/eslint/eslint) with eslint-config-next.
 
-**Fonts (Google Fonts, SIL Open Font License):** Geist, Geist Mono, Instrument Serif.
+**Fonts (SIL Open Font License):** Geist, Geist Mono and Instrument Serif (Google Fonts, used on the website); IBM Plex Sans and IBM Plex Mono ([IBM/plex](https://github.com/IBM/plex)) and Instrument Serif, bundled as files in `server/app/report/fonts/` with their licences, for the PDF report.
 
 **Tools:** [Mailpit](https://github.com/axllent/mailpit) v1.34.0 (MIT) as the local inbox. Data from [Crustdata](https://crustdata.com). Models from [Anthropic](https://www.anthropic.com).
 
@@ -255,7 +257,7 @@ uv venv .venv
 uv pip install -r requirements.txt --python .venv/bin/python
 ```
 
-Mailpit was downloaded from its GitHub release page and its checksum was checked.
+Mailpit was downloaded from its GitHub release page and its checksum was checked. The PDF fonts were downloaded with `curl` from `github.com/IBM/plex` and `github.com/google/fonts` and checked as valid TrueType files.
 
 **Landing page:** the pond is drawn in code on a canvas with no image files. Its look was inspired by a pixel-art koi pond illustration and by the playful feel of other pixel games; no art, code or assets were copied.
 

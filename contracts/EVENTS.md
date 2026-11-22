@@ -72,3 +72,10 @@ The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need
 | Type | Extra fields | Meaning |
 | --- | --- | --- |
 | `questions.assigned` | `experts`, `questions_per_expert`, `questions_total`, `method` (`model`, `model+rule`, `rule`) | Stage 6 gave every invited expert a fixed number of questions. No names or ids in the payload, so the customer stream passes it through. |
+
+## Added 2026-11-22 (Ananya, client report)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `report.overview_written` | `llm_call_id`, `findings`, `dropped_uncited` | The executive overview for the report was written; findings without a valid citation were dropped. |
+| `report.generated` | `bytes`, `with_overview`, `summary_status`, `answers_used` | A PDF report was built and handed to the client. No personal data. |

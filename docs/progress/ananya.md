@@ -269,3 +269,11 @@ Next: PDF report; company-picker fix.
 Decisions: edited Dev's s6 at Ananya's request. Build confirmed still open by Ananya (freeze time not given).
 Blocked on: nothing.
 Contracts touched: API.md, EVENTS.md, OWNERS.md (additive).
+
+## 2026-11-22 17:57 IST ananya client-report-pdf
+Done: client report as a PDF. `server/app/report/` (new): `data.py` gathers customer-safe facts (result, plan, screening aggregates, companies searched, experts who answered by ref and tenure band, audit chain check, model and Crustdata calls, costs); `overview.py` writes a headline, key findings and next questions with one small-model call, cite-or-drop, stored append-only as `s9_report_overview` and keyed on the answers (the first schema had a nested headline object that Haiku returned as a string, so it is flat now, with a shape check that triggers a retry); `pdf.py` renders 9 A4 pages with ReportLab: cover with stat cards and contents, executive summary, findings by sub-question with the experts' answers, appendices A to E; `routes.py` has `POST /customer/cases/{id}/report/prepare` and `GET /customer/cases/{id}/report.pdf`. Fonts IBM Plex Sans and Mono and Instrument Serif are bundled with their OFL licences in `server/app/report/fonts/`. Web: "Download report (PDF)" button in the Result tab (`web/src/app/(main)/cases/[id]/CaseView.tsx`, `web/src/lib/api.ts`). 168 server tests pass (6 new in `server/tests/test_report.py`, incl. no personal data in the PDF text). Checked end to end: a real headless browser clicked the button on the local delivered case and received a valid 9-page PDF with no errors.
+In progress: nothing.
+Next: company-picker fix (competitors dropped as "not confident").
+Decisions: the report states that in this build the answers come from team members playing the candidates (README and PDF). New dependencies `reportlab` and `pypdf` in `server/requirements/expert.txt`; credits and font download commands in the README.
+Blocked on: Render redeploy to get the new dependency and the report on the hosted site.
+Contracts touched: API.md, EVENTS.md (additive).

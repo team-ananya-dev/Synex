@@ -189,3 +189,14 @@ Additive except where marked. Dev was told in `docs/inbox/dev/2026-11-22-ananya-
 
 ## Changes 2026-11-22 (Ananya): several questions per expert
 Additive. Each invited expert now gets a fixed small number of questions (default 3), not only the one they were picked for. Nothing in a route changes: `invites[].subquestion_indices`, `GET /approvals`, `GET /expert/{token}` (`subquestions`) and `POST /expert/{token}/responses` already took a list, and the expert must still answer or skip (I don't know / can't answer without confidential information) each one. The first index is the question the expert was picked for. New event `questions.assigned` in `EVENTS.md`; setting `SYNEX_QUESTIONS_PER_EXPERT` in `OWNERS.md`. The invitation email word limit is now 300 words (it has to carry the questions).
+
+## Changes 2026-11-22 (Ananya): client report (PDF)
+Additive. Customer-safe: built from the same screened data as the result screen, with experts only as anonymous refs (never a name, link, city or email). Code: `server/app/report/` (mounted on the expert router, so `main.py` is unchanged).
+
+### `POST /customer/cases/{id}/report/prepare`
+Makes the written parts exist for the current accepted answers: the per-sub-question summary (`POST .../result/summary`, if missing or stale) and the executive overview (one small-model call, `purpose: report_overview`, cite-or-drop: a headline or finding that cites no answer of this case is removed). Safe to repeat: the same answers and summaries make no new model call. Returns `200 {"case_id", "summary": "written"|"unavailable", "overview": "written"|"unavailable", "overview_error": null|"<ErrorName>", "ready": true}`. A model failure does not fail the request. `409` no accepted answer yet, `404` unknown case.
+
+### `GET /customer/cases/{id}/report.pdf`
+`application/pdf`, `Content-Disposition: attachment; filename="synex-report-<id>.pdf"`. Built from the case's current data, using the stored overview only if it was written for exactly the current answers (otherwise the report says a written overview was not available). `409` until one answer is accepted, `404` unknown case. Sections: cover, executive summary, findings by sub-question, appendices A to E (method, experts who answered, people screening, audit trail and cost, limitations).
+
+New events (`EVENTS.md`): `report.overview_written` `{"llm_call_id", "findings", "dropped_uncited"}` and `report.generated` `{"bytes", "with_overview", "summary_status", "answers_used"}`. Overview is stored append-only in `stage_results` as `s9_report_overview`, keyed on the answers and summaries it used.
