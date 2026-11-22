@@ -17,22 +17,22 @@ Built at ContextCon 05 (theme "Services, Replaced") by Dev and Ananya.
 
 ```mermaid
 flowchart LR
-    Q([Customer asks a question]):::you --> S1[Question screen<br/>allow, refuse or rewrite]
+    Q([Customer asks a question]):::person --> S1[Question screen<br/>allow, refuse or rewrite]
     S1 --> S2[Plan<br/>3 to 5 sub-questions]
-    S2 --> A1{{Customer approves<br/>plan and panel size}}:::click
+    S2 --> A1{{Customer approves<br/>plan and panel size}}:::approve
     A1 --> S3[Find former employees<br/>Crustdata, live]
     S3 --> S4[Compliance rules in code<br/>each cites field and date]
     S4 -->|fail| X[Excluded, reason shown]:::stop
     S4 -->|missing data| CV[Cannot verify,<br/>names the missing field]:::stop
     S4 -->|pass| S5[Rank with evidence<br/>quotes checked in code]
     S5 --> S6[Draft anonymised invitations]
-    S6 --> A2{{Customer approves<br/>the invitations}}:::click
+    S6 --> A2{{Customer approves<br/>the invitations}}:::approve
     A2 --> M[Email to teammate inbox<br/>sent exactly once]
-    M --> E([Expert answers<br/>on a private page]):::you
+    M --> E([Expert answers<br/>on a private page]):::person
     E --> S7[Answer screen<br/>accept, redact, hold, reject]
     S7 --> R[Result: sources, confidence,<br/>cited summary]:::done
-    classDef you fill:#1e3a5f,stroke:#60a5fa,color:#fff
-    classDef click fill:#4a3510,stroke:#fbbf24,color:#fff
+    classDef person fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    classDef approve fill:#4a3510,stroke:#fbbf24,color:#fff
     classDef stop fill:#4a1010,stroke:#f87171,color:#fff
     classDef done fill:#0f3d2e,stroke:#34d399,color:#fff
 ```

@@ -103,30 +103,38 @@ flowchart TB
 - SQLite triggers block UPDATE and DELETE on all of these tables.
 
 
-## Retries, exactly-once actions, limits and the cost ledger (Dev, 2026-11-22)
+## Retries, exactly-once actions, limits and the cost ledger
 
 ```mermaid
 flowchart LR
-  subgraph API["API process (restarted in place if killed)"]
-    RS[run_stage: reuse a finished stage] --> LIM{time, credit and model-spend limits}
-    LIM -- over --> LR[LIMIT_REACHED with reason]
-    LIM -- ok --> CD[Crustdata client: 2 retries on network errors]
-    LIM -- ok --> LLM[model wrapper: 1 retry on an invalid reply]
-    APP[customer approves invitations] --> ACT[(actions: key PENDING)]
-    ACT --> SMTP[send through the allowlist gate, Message-ID = key]
-    SMTP --> DONE[(actions: DONE)]
+  subgraph APIPROC["API process (restarted in place if killed)"]
+    STG[Next stage] --> LIM{Within time, credit<br/>and spend limits?}
+    LIM -- no --> STOP[LIMIT_REACHED<br/>with the reason]
+    LIM -- yes --> CDC[Crustdata call<br/>paced, 2 retries, 429 wait]
+    LIM -- yes --> AIC[Model call<br/>1 retry on a bad reply]
+    OK[Customer approves] --> PEND[(actions: PENDING)]
+    PEND --> SEND[Send via allowlist gate<br/>Message-ID = key]
+    SEND --> DONEROW[(actions: DONE)]
   end
-  CD --> COST[(crustdata_calls: credits)]
-  LLM --> COST2[(llm_calls: tokens, USD)]
-  COST & COST2 --> VIEW[cost per case in USD and INR]
-  START[startup] --> RES[resume: finish APPROVED sends, continue DRAFT and SOURCING cases]
-  RES -->|PENDING action| MB{message with this key in the mailbox?}
-  MB -- yes --> DONE
-  MB -- no --> SMTP
-  MB -- cannot read --> NO[FAILED, not sent again]
+  CDC --> CLOG[(crustdata_calls<br/>credits)]
+  AIC --> LLOG[(llm_calls<br/>tokens, USD)]
+  CLOG --> COSTV[Cost per job<br/>USD and INR]
+  LLOG --> COSTV
+  BOOT[Restart] --> RESUME[Resume cases and<br/>approved sends]
+  RESUME --> CHECK{Key already<br/>in the mailbox?}
+  CHECK -- yes --> DONEROW
+  CHECK -- no --> SEND
+  CHECK -- unknown --> HOLD[FAILED, not resent]
+  classDef bad fill:#4a1010,stroke:#f87171,color:#fff
+  classDef good fill:#0f3d2e,stroke:#34d399,color:#fff
+  class STOP,HOLD bad
+  class DONEROW,COSTV good
 ```
 
-- **Retries:** Crustdata network errors are retried twice, then logged; a failed enrichment keeps the first-pass ranking. A model reply that fails validation is retried once with the error shown. A failed case can be retried from its last finished stage (`POST /cases/{id}/retry`, operator).
-- **Exactly once:** every email has an `actions` row keyed by `sha256(case | send_invitation | outreach id)`. A `DONE` action is never repeated; a `PENDING` one is resolved against the mailbox.
-- **Limits:** checked before every stage and every external call; a breach stops the case as `LIMIT_REACHED` and names the limit.
-- **Cost ledger:** `crustdata_calls` and `llm_calls` record every call with its credits or tokens and dollars; the case view converts to rupees. No payment ledger exists: this build takes no payment.
+| Guard | Where | Effect |
+| --- | --- | --- |
+| Exactly once | `actions` table, key = sha256(case, action, target) | an email is never sent twice, even after `kill -9` |
+| Resume | startup | cases continue from their last finished stage |
+| Retries | Crustdata client, model wrapper | network errors, 429s and bad replies retried, then logged |
+| Limits | before every stage and call | stop cleanly as `LIMIT_REACHED` |
+| Cost ledger | `crustdata_calls`, `llm_calls` | every call's credits, tokens and dollars; shown in rupees. No payments. |
