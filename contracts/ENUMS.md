@@ -37,3 +37,7 @@ Stage name `s6_outreach_writer`. Case state `AWAITING_APPROVAL` is now set by th
 ## Added 2026-11-22 (Ananya, expert page)
 
 Response `mode`: `form`, `voice`, `text`. Response `kind`: `answer`, `dont_know`, `confidential`. Self-rated `confidence`: `low`, `medium`, `high`. Case state `COLLECTING` is set by the first expert response.
+
+## Added 2026-11-22 (customer approval of invitations)
+
+Approvers: `customer` (approves the invitations of their own case), `dev`, `ananya` (registered team members; there are no operator approval routes any more). `AWAITING_APPROVAL` now means: waiting for the customer to approve the anonymised invitations.

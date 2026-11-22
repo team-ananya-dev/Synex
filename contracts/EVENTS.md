@@ -52,3 +52,11 @@ The stream closes at `job.paused`; events after it (`approval.*`, `mail.*`) need
 | Type | Extra fields | Meaning |
 | --- | --- | --- |
 | `response.received` | `response_id`, `subquestion_index`, `kind` (`answer`, `dont_know`, `confidential`), `mode` | An expert answered one sub-question. No answer text and no personal data, so the customer stream can pass it through unchanged. |
+
+## Added 2026-11-22 (customer approval of invitations)
+
+| Type | Extra fields | Meaning |
+| --- | --- | --- |
+| `outreach.batch_approved` | `sent`, `dropped`, `blocked`, `failed`, `by` | The customer approved the invitations. One event per batch, after the per-email events below. |
+
+`approval.approved` and `approval.rejected` are still emitted once per email, now with `by: "customer"`. The customer stream carries only `outreach_id` for `approval.*`, `mail.sent`, `mail.blocked` and `mail.failed`.

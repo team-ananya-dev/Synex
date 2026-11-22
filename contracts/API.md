@@ -128,3 +128,15 @@ Body `{"mode": "form" | "voice" | "text", "attestations": {"not_current_employee
 Each sub-question of the link exactly once; `text` and `confidence` are required for `kind = answer` and cleared otherwise. Returns `201 {"received": [{"response_id", "subquestion_index", "kind"}]}`.
 `404` unknown token, `409` link not `SENT` or already submitted (one submission per link), `422` a statement not confirmed, a sub-question missing or extra, or an empty answer.
 Rows go to the append-only `responses` table (`server/app/db/schema_expert.sql`). `response_id` (for example `R3fa91c20`) is what memo claims cite. The first response moves the case from `AWAITING_APPROVAL` to `COLLECTING`.
+
+## Changes 2026-11-22 (Dev): the customer approves the invitations, operators no longer approve emails
+Decision record: `contracts/decisions/2026-11-22-dev-customer-approves-invitations.md`.
+
+- **Removed:** `POST /approvals/{id}/approve` and `POST /approvals/{id}/reject`. Nobody sits and approves each email. `GET /approvals` stays, read-only, as the operator's list of every invitation and what happened to it.
+- **New lifecycle step 4:** at `AWAITING_APPROVAL` the customer reviews the anonymised invitations (`invites` below) and clicks approve. Listed experts are invited, every other waiting invitation is dropped, and the case moves to `COLLECTING`. Experts who have a `SENT` invitation can then open their private link (your expert page needs nothing else).
+- `GET /customer/cases/{id}` has a new field `invites`:
+  `[{"ref", "role", "company", "tenure_months", "subquestion_indices", "subject", "preview", "status", "flagged", "flag_reasons": [str], "selected_by_default"}]`.
+  `preview` is the email text with the first name and the private link replaced by `[first name]` and `[private link]`. There is no address, name or link anywhere in it. `flagged` experts (a review flag from the people screen, such as a role at a competitor) have `selected_by_default: false` and `flag_reasons` the customer must read: the customer approves or drops them. `status` is `DRAFTED`, `SENT`, `REJECTED`, `BLOCKED` or `FAILED`.
+- `POST /customer/cases/{id}/approve-outreach`, body `{"refs": ["E3fa91c20", ...]}` (at least one `ref` from `invites`). Returns `{"sent", "dropped", "blocked", "failed", "state"}` where `state` is `COLLECTING` if at least one email went out, else still `AWAITING_APPROVAL`. `409` if the case is not `AWAITING_APPROVAL` (also on a second click), `422` for an empty list or a `ref` that is not waiting, `404` for an unknown case.
+- Mail still leaves only through the teammate allowlist gate. In this competition every invitation goes to a teammate's inbox (Mailpit); `blocked` counts any address the gate refused and `failed` a mail server error (the invitation then shows `FAILED` with the reason in the operator list).
+- Customer screens must say what happens to the invitations honestly: they are the anonymised text of what the expert receives. Do not show the real recipient.
