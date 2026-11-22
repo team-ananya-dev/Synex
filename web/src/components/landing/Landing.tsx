@@ -69,7 +69,6 @@ export function Landing() {
       </header>
 
       <section className="relative flex min-h-[86vh] flex-col items-center justify-center px-6 text-center">
-        <span className="eyebrow mb-7">An expert network, as software</span>
         <h1 className="max-w-4xl font-serif text-5xl leading-[1.05] tracking-tight text-cream soft-shadow sm:text-7xl">
           One question. Answers from <em className="text-amber">the people who were there.</em>
         </h1>

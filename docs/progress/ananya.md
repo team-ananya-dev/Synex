@@ -146,3 +146,11 @@ Next: push; customer "Review invitations" step; stage 8 memo.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:21 IST ananya landing-eyebrow
+Done: removed the "An expert network, as software" line above the landing headline (`web/src/components/landing/Landing.tsx`).
+In progress: nothing.
+Next: push; customer "Review invitations" step; stage 8 memo.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.
