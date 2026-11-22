@@ -99,16 +99,22 @@ export type ExpertCard = {
   evidence_hidden: number;
 };
 
-export type Quote = { subquestions: number; price_per_subquestion: number; hold_amount: number; currency: string };
+// A display figure only: the service takes no payment.
+export type Quote = { subquestions: number; price_per_subquestion_inr: number; quoted_price_inr: number; label: string };
 
-export type LedgerEntry = {
-  kind: "HOLD" | "CAPTURE" | "RELEASE";
-  amount: number;
-  currency: string;
-  ref: string | null;
-  note: string;
-  created_by: string;
-  created_at: string;
+// One anonymised invitation the customer reviews before anything is sent (no name, address or link).
+export type Invite = {
+  ref: string;
+  role: string | null;
+  company: string | null;
+  tenure_months: number | null;
+  subquestion_indices: number[];
+  subject: string;
+  preview: string;
+  status: OutreachStatus;
+  flagged: boolean;
+  flag_reasons: string[];
+  selected_by_default: boolean;
 };
 
 export type CustomerCase = {
@@ -119,17 +125,14 @@ export type CustomerCase = {
   created_at: string;
   plan: SubQuestion[] | null;
   quote: Quote | null;
-  approval: { panel_size?: number; budget?: number; hold?: number } | null;
+  approval: { panel_size: number } | null;
   screening: Record<string, {
     considered: number; pass: number; review: number; fail: number;
     excluded: { ref: string; reasons: string[] }[];
   }>;
   panel: Record<string, ExpertCard[]>;
   outreach: Partial<Record<OutreachStatus, number>>;
-  ledger: {
-    balance: { held: number; captured: number; released: number; remaining: number; currency: string };
-    entries: LedgerEntry[];
-  };
+  invites: Invite[];
   cost: { crustdata_credits: number; model_usd: number; credit_cap: number };
 };
 
@@ -261,10 +264,14 @@ export const api = {
   // customer routes
   listCustomerCases: () => request<CaseSummary[]>("/customer/cases"),
   getCustomerCase: (id: string) => request<CustomerCase>(`/customer/cases/${id}`),
-  approvePlan: (id: string, panel_size: number, budget: number) =>
-    request<{ id: string; state: CaseState; hold: Quote }>(`/customer/cases/${id}/approve-plan`, {
-      method: "POST", body: JSON.stringify({ panel_size, budget }),
+  approvePlan: (id: string, panel_size: number) =>
+    request<{ id: string; state: CaseState; quote: Quote }>(`/customer/cases/${id}/approve-plan`, {
+      method: "POST", body: JSON.stringify({ panel_size }),
     }),
+  approveOutreach: (id: string, refs: string[]) =>
+    request<{ sent: number; dropped: number; blocked: number; failed: number; state: CaseState }>(
+      `/customer/cases/${id}/approve-outreach`, { method: "POST", body: JSON.stringify({ refs }) },
+    ),
   // operator routes: real people's details, operator screens only
   getCase: (id: string) => request<CaseView>(`/cases/${id}`),
   listApprovals: (filters: { status?: OutreachStatus; case_id?: string } = {}) => {
