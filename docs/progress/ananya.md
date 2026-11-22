@@ -245,3 +245,11 @@ Next: demo video; walkthroughs.
 Decisions: edited Dev's s6 and Crustdata client at Ananya's request; told in `docs/inbox/dev/2026-11-22-ananya-gap-fixes.md` (appended).
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 16:47 IST ananya ranker-reason-no-headline
+Done: `server/app/stages/s5_ranker.py` (Dev's file): the ranker prompt now says the reason is shown to the customer, so it must never mention the headline or where the person works now. Found in the demo-mode dry run: reasons like "headline emphasizes marketing and brand visibility" paraphrased a self-written profile line the product otherwise hides. Demo-mode dry run (case 4c18096678e1, Swiggy question): allowed, 4 sub-questions, panel spread over Swiggy, Zomato and Dineout, 171 Crustdata credits, $0.19 model spend, about 6 minutes of sourcing after a rate-limit retry.
+In progress: nothing.
+Next: demo video.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.

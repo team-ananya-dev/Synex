@@ -34,6 +34,8 @@ SYSTEM = (
     "evidence: 1 to 3 snippets copied EXACTLY (same words, same spelling) from that candidate's title, headline, "
     "function, role description or skills, the ones your score rests on. Copy only the value text, without labels "
     "such as 'title:'. Tenure, dates and employers are not evidence of expertise. reason: one line that uses only those snippets. "
+    "The reason is shown to the customer, so never mention or describe the headline in it, and never say where the person "
+    "works now: refer only to the job title, role description or skills. "
     "data_conflict: if facts contradict each other (for example the headline describes an unrelated career "
     "from the job title), say so in one line, otherwise an empty string. Low scores for unrelated roles."
 )
