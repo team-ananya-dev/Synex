@@ -7,6 +7,8 @@ candidate left with no supported evidence is capped and kept off the panel.
 from ..core import llm
 
 MIN_SCORE = 40       # below this a candidate is left off the panel
+BATCH = 12           # candidates per model call, so a reply is never cut off
+RANK_MAX = 36        # candidates scored per sub-question, best search relevance first
 UNSUPPORTED_CAP = 30  # score cap when no evidence snippet could be verified
 
 SCHEMA = {
@@ -65,24 +67,33 @@ def rank(conn, candidates: list[dict], sub_question: str, expertise: str, case_i
     """Return ({"ranked": [...], "excluded": [...]}, llm_call_id). ranked is the panel, best first."""
     if not candidates:
         return {"ranked": [], "excluded": []}, None
-    ids = {c["person_id"] for c in candidates}
+    tier = {"strong": 0, "moderate": 1}
+    ordered = sorted(candidates, key=lambda c: tier.get(c.get("crustdata_fit") or "", 2))  # stable: keeps search order
+    scored, unscored = ordered[:RANK_MAX], ordered[RANK_MAX:]
+    facts = {c["person_id"]: facts_for(c) for c in scored}
+    quotable = {c["person_id"]: evidence_source(c) for c in scored}
+    replies, call_ids = [], []
+    for i in range(0, len(scored), BATCH):
+        batch = scored[i:i + BATCH]
+        ids = {c["person_id"] for c in batch}
 
-    def check(r):
-        got = [x["person_id"] for x in r["ranked"]]
-        if set(got) != ids or len(got) != len(ids):
-            raise ValueError("score every candidate exactly once, using only the given person_ids")
+        def check(r, ids=ids):
+            got = [x["person_id"] for x in r["ranked"]]
+            if set(got) != ids or len(got) != len(ids):
+                raise ValueError("score every candidate exactly once, using only the given person_ids")
 
-    facts = {c["person_id"]: facts_for(c) for c in candidates}
-    quotable = {c["person_id"]: evidence_source(c) for c in candidates}
-    lines = "\n".join(f"- person_id {pid}: {f}" for pid, f in facts.items())
-    reply, call_id = llm.call_json(
-        conn, purpose="rank_candidates", case_id=case_id, validate=check, schema=SCHEMA, system=SYSTEM,
-        user=f"Sub-question: {sub_question}\nExpertise needed: {expertise}\nCandidates:\n{lines}",
-        max_tokens=2500,
-    )
+        lines = "\n".join(f"- person_id {c['person_id']}: {facts[c['person_id']]}" for c in batch)
+        reply, call_id = llm.call_json(
+            conn, purpose="rank_candidates", case_id=case_id, validate=check, schema=SCHEMA, system=SYSTEM,
+            user=f"Sub-question: {sub_question}\nExpertise needed: {expertise}\nCandidates:\n{lines}",
+            max_tokens=4000,
+        )
+        replies += reply["ranked"]
+        call_ids.append(call_id)
+    call_id = ",".join(call_ids)
     by_id = {c["person_id"]: c for c in candidates}
     ranked, excluded = [], []
-    for r in reply["ranked"]:
+    for r in replies:
         text = quotable[r["person_id"]]
         evidence = [e.strip() for e in r["evidence"] if e.strip() and e.strip().lower() in text]
         score = r["score"] if evidence else min(r["score"], UNSUPPORTED_CAP)
@@ -94,7 +105,9 @@ def rank(conn, candidates: list[dict], sub_question: str, expertise: str, case_i
     excluded.sort(key=lambda x: -x["score"])
     return {"ranked": ranked, "excluded": [
         {"person_id": e["person_id"], "name": e["name"], "score": e["score"], "title": e["title"],
-         "why": "no supported evidence" if not e["evidence"] else "low fit"} for e in excluded]}, call_id
+         "why": "no supported evidence" if not e["evidence"] else "low fit"} for e in excluded] + [
+        {"person_id": c["person_id"], "name": c["name"], "score": None, "title": c["title"],
+         "why": f"not scored: beyond the top {RANK_MAX} by search relevance"} for c in unscored]}, call_id
 
 
 def with_profile(candidate: dict, person_data: dict, company_id: int) -> dict:
