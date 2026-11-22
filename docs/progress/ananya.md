@@ -228,3 +228,11 @@ Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as ex
 Decisions: none new
 Blocked on: nothing.
 Contracts touched: none
+
+## 2026-11-22 16:20 IST ananya gap-docs
+Done: README updated for the gap fixes (question screen keeps companies, anonymity rule, close case, expert outcome, different aspects, not sourced); note to Dev listing every file of his I changed.
+In progress: nothing.
+Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as experts; demo video.
+Decisions: none new
+Blocked on: nothing.
+Contracts touched: none

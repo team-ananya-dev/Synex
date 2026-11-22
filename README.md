@@ -19,7 +19,7 @@ Eight stages. Details and diagrams are in [`docs/ARCHITECTURE.md`](docs/ARCHITEC
 
 | # | Stage | What it does | Decided by |
 | --- | --- | --- | --- |
-| 1 | Question screen | Allows, rewrites or refuses the question and says why. | small model |
+| 1 | Question screen | Allows, rewrites or refuses the question and says why. Naming a company is not a reason to rewrite; code puts back any company a rewrite dropped. | small model, code check |
 | 2 | Plan | Splits the question into 3 to 5 sub-questions with the expertise and target companies. A company counts as "named" only if its name is in the question, checked in code. | small model, code check |
 | 3 | Sourcing | Finds the company record by id, then searches Crustdata for people who held a role there that ended inside the window. | Crustdata; model only picks among returned ids |
 | 4 | People screen | Fixed rules, each returning pass or fail with a reason. | code |
@@ -50,12 +50,17 @@ The model must quote the exact words it wants removed. Code checks that each quo
 
 ### Result (stage 8)
 
-Sources, label and confidence are computed in code. Two answers count as one source when both experts worked at the same company, in the same function and city, with at least 3 months of overlap in their roles (Crustdata work history). A missing field counts the expert as a separate source and is listed. Confidence: 3 or more independent sources High, 2 Medium, 1 Low. The model only writes the summary wording and judges consensus or split; any sentence without a valid citation is dropped, and the count of dropped sentences is shown.
+Sources, label and confidence are computed in code. Two answers count as one source when both experts worked at the same company, in the same function and city, with at least 3 months of overlap in their roles (Crustdata work history). A missing field counts the expert as a separate source and is listed. Confidence: 3 or more independent sources High, 2 Medium, 1 Low. The model only writes the summary wording and judges consensus, split, or "different aspects" (the answers do not address the same point); any sentence without a valid citation is dropped, and the count of dropped sentences is shown. Sub-questions that were never searched (development limits) say "not sourced".
+
+Anonymity: next to an answer the customer sees the exact job title only if at least 3 different experts with that title have accepted answers in the case; otherwise a coarse label such as "Sales manager" (`server/app/anonymity.py`).
+
+After submitting, the expert sees what happened to each answer and why, including any words that were removed.
 
 ## Approvals
 
 - The customer approves the plan. Nothing is fetched from Crustdata before that click.
 - The customer reads the anonymised invitations and approves them with one click. Each email still gets its own approval event in the audit trail. Invitations with a review flag start unselected.
+- The customer closes the case when they have enough. It becomes DELIVERED, needs at least one accepted answer, and expert links stop taking answers.
 - Mail leaves only through one function that refuses any address not on a hard-coded allowlist of two teammate addresses (`server/app/actions/mail.py`).
 - The customer never sees a name, a profile link, a city or an email address. Customer routes (`/customer/...`) are separate from operator routes, which do show them.
 
