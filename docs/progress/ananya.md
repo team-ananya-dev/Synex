@@ -138,3 +138,11 @@ Next: push; customer "Review invitations" step; stage 8 memo.
 Decisions: none new.
 Blocked on: nothing.
 Contracts touched: none.
+
+## 2026-11-22 15:15 IST ananya landing-ripple-middle
+Done: ripples spread at a middle speed (wave step every third frame, damping 0.962) with a moderate pointer wake (every other frame, softer strength). Removed the helper lines on the landing page: the hero note, the line under the stages, the rules sub-heading, and both toy footnotes. Files: `web/src/components/landing/Pond.tsx`, `Landing.tsx`, `Toys.tsx`.
+In progress: nothing.
+Next: push; customer "Review invitations" step; stage 8 memo.
+Decisions: none new.
+Blocked on: nothing.
+Contracts touched: none.

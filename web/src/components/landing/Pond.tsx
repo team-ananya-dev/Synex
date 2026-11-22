@@ -182,16 +182,16 @@ export function Pond() {
       frame++;
       const t = frame;
 
-      // ---- water waves (every other frame, so ripples travel slowly) ----
-      if (t % 2 === 0) for (let y = 1; y < H - 1; y++)
+      // ---- water waves (every third frame, so ripples spread slowly) ----
+      if (t % 3 === 0) for (let y = 1; y < H - 1; y++)
         for (let x = 1, i = y * W + 1; x < W - 1; x++, i++)
-          prev[i] = ((cur[i - 1] + cur[i + 1] + cur[i - W] + cur[i + W]) * 0.5 - prev[i]) * 0.968;
-      if (t % 2 === 0) [cur, prev] = [prev, cur];
+          prev[i] = ((cur[i - 1] + cur[i + 1] + cur[i - W] + cur[i + W]) * 0.5 - prev[i]) * 0.962;
+      if (t % 3 === 0) [cur, prev] = [prev, cur];
 
       // pointer wake
       if (pointer.active && pointer.px > -900) {
         const sp = Math.hypot(pointer.x - pointer.px, pointer.y - pointer.py);
-        if (sp > 0.25) disturb(pointer.x, pointer.y, 1.5, Math.min(sp, 5) * 3.2);
+        if (sp > 0.4 && t % 2 === 0) disturb(pointer.x, pointer.y, 1.2, Math.min(sp, 4) * 2.2);
       }
       pointer.px = pointer.x;
       pointer.py = pointer.y;
@@ -306,7 +306,7 @@ export function Pond() {
           const c = lvl === 3 ? RIM : WATER[lvl];
           const s = (cur[i - 1] - cur[i + 1]) + (cur[i - W] - cur[i + W]);
           // three flat tones only, so ripples read as pixel rings rather than a smooth gradient
-          const k = s > 1.6 ? CREST : s < -1.6 ? TROUGH : c;
+          const k = s > 1.9 ? CREST : s < -1.9 ? TROUGH : c;
           px[i] = 0xff000000 | (k[2] << 16) | (k[1] << 8) | k[0];
         }
       }

@@ -87,9 +87,6 @@ export function Landing() {
           />
           <button type="submit" className="btn-primary flex-none">Start research</button>
         </form>
-        <p className="mt-4 text-xs text-mist soft-shadow">
-          A model plans the research first. No people data is fetched until you approve the plan.
-        </p>
       </section>
 
       <section id="how" className="relative mx-auto max-w-6xl scroll-mt-6 px-6 py-24">
@@ -106,13 +103,10 @@ export function Landing() {
             </div>
           ))}
         </div>
-        <p className="mt-6 text-center text-xs text-mist soft-shadow">
-          Every stage writes its result and an audit event, and the case page shows each one as it happens.
-        </p>
       </section>
 
       <section id="rules" className="relative mx-auto max-w-6xl scroll-mt-6 px-6 py-24">
-        <Heading eyebrow="The rules" title="Try two of them yourself" sub="These run the same thresholds and patterns as the server, in your browser, on what you enter." />
+        <Heading eyebrow="The rules" title="Try two of them yourself" />
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <div className="glass rounded-2xl p-7">
             <span className="eyebrow">People screen</span>
@@ -185,12 +179,11 @@ export function Landing() {
   );
 }
 
-function Heading({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
+function Heading({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       <span className="eyebrow">{eyebrow}</span>
       <h2 className="max-w-3xl font-serif text-4xl leading-tight tracking-tight soft-shadow sm:text-5xl">{title}</h2>
-      {sub && <p className="max-w-xl text-sm leading-relaxed text-mist soft-shadow">{sub}</p>}
     </div>
   );
 }

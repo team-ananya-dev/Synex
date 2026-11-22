@@ -72,7 +72,6 @@ export function PeopleScreenToy() {
         ))}
       </ul>
       <Verdict ok={pass}>{pass ? "Passes the people screen" : "Filtered out, with the reason shown"}</Verdict>
-      <p className="text-xs text-mist">Same thresholds as the server&apos;s people screen (default settings).</p>
     </div>
   );
 }
@@ -109,9 +108,6 @@ export function LeakRuleToy() {
       <Verdict ok={!hits.length}>
         {hits.length ? `Held for a person: ${hits.length} flagged phrase${hits.length > 1 ? "s" : ""}` : "Clear: passed on to the model screen"}
       </Verdict>
-      <p className="text-xs text-mist">
-        This runs only the code rule. On the server a model also reads every answer, and its quotes are checked in code.
-      </p>
     </div>
   );
 }
