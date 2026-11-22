@@ -4,6 +4,36 @@ An expert network, rebuilt as software. A customer asks a business question. Syn
 
 Built at ContextCon 05 (theme "Services, Replaced") by Dev and Ananya.
 
+## The job, the input, the result and the pass mark
+
+**The job and who pays for it today.** Expert networks (GLG, AlphaSights, Guidepoint, Tegus) are paid by hedge funds, private-equity firms, consultancies and corporate strategy teams to find a former employee who can answer a question, check that talking to them is allowed, and set up a paid call. The price commonly quoted is about $500 to $1,500 per call hour (a figure from our earlier research, not verified during the build). Synex does the sourcing, the compliance screening, the invitations, the answer screening and the write-up.
+
+**Price and measured cost.** The case page shows a quoted price in rupees (₹8,000 per answered sub-question, set by `SYNEX_PRICE_PER_SUBQUESTION_INR`), labelled "quoted price, no payment taken": this build takes no payment. It also shows the measured cost of the job, from the cost log: Crustdata credits and model spend in dollars and rupees (`SYNEX_USD_INR`, default 85; `SYNEX_INR_PER_CREDIT` converts credits once the team sets the rate it pays). A demo-mode case with 5 sub-questions used about 170 Crustdata credits and $0.28 of model spend.
+
+**Input.** One business question in plain text, on the Ask page or `POST /cases {"question": "..."}`. The customer then approves the plan and the panel size, and later the anonymised invitations.
+
+**Finished result.** Per sub-question: the anonymised panel that passed the compliance rules; the screened answers (accepted, or redacted with the risky part removed); the number of independent sources; a confidence level computed in code (High with 3 or more independent sources, Medium with 2, Low with 1); and a summary in which every sentence cites an answer, with uncited sentences dropped in code. Every screening decision names the Crustdata field it read (for example `experience.employment_details.past[2].end_date`), the value, the record's refresh date and the call id. Where the sources do not settle a question the result says **cannot verify** and names what is missing. The audit trail and the cost log come with it.
+
+**Pass mark.** A case passes when:
+1. nobody is contacted who fails a rule, and nobody whose data is missing or whose company is ambiguous (they come out as cannot verify, never as a guess);
+2. every screening fact cites its field, value, record date and call;
+3. each email is sent exactly once, and only after a person approved it, including across a kill and restart;
+4. every summary sentence cites an accepted answer, and no confidential span reaches the customer;
+5. the run stays inside its time, credit and model-spend limits, or stops cleanly as `LIMIT_REACHED` with the reason.
+The three submitted test cases (`tests/cases/`, checked by `server/tests/test_cases.py`) are real Crustdata records with the correct result: a clean pass, a still-employed fail, and a cannot verify (missing start date).
+
+**Data sources the service calls.**
+| Source | Calls | Used for |
+| --- | --- | --- |
+| Crustdata Company API | `POST /company/identify` (0.2 credits), `POST /company/enrich` with `competitors` (2 credits) | resolving the company by id; the competitor list for rule 4 |
+| Crustdata Person API | `POST /person/search` with hard filters and a relevance query in `exact` mode (about 0.33 credits per result), `POST /person/enrich` with `experience` and `skills` (1 credit per person) | finding former employees; role descriptions for the shortlist |
+| Anthropic Claude API | `claude-haiku-4-5-20251001` | question screen, plan, company pick, ranking, invitation drafts, response screen, summary |
+Crustdata person and company data is indexed, not fetched live from the web: Crustdata refreshes it every 1 to 30 days, and the records used in our runs carry refresh dates from 2026-11-08 to 2026-11-18. Every call, its credits or tokens and its cost are in the cost log.
+
+**Robustness.** Each email has an idempotency key (`sha256(case | action | target)`) written `PENDING` before the send and `DONE` after; the key is the email's `Message-ID`, so after a kill the service checks the mailbox before sending anything again, and never re-sends blind. On restart, cases continue from their last finished stage and approved invitations are finished. `server/scripts/kill_test.sh` kills the server with `kill -9` in the middle of sending and checks that the mailbox holds each invitation exactly once (last run: killed after 2 of 4, restarted, 4 emails, one each). Each run has a time limit, a credit cap and a model-spend cap (`server/app/core/config.py`).
+
+**Honest limits.** Emails go only to two allowlisted teammate inboxes (a local Mailpit inbox), never to a real person. No payment is made. The dev cache of Crustdata responses is off in demo runs (`SYNEX_DEMO=1`). The Haiku price used for the dollar cost ($1 in, $5 out per million tokens) was not confirmed against the Anthropic console during the build. Hosted on Render's free plan (`render.yaml`): killing the API process restarts it in the same container and keeps the database, but a redeploy or Render's idle sleep starts it with an empty database.
+
 ## What is real, what is simulated
 
 | | |

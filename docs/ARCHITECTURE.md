@@ -101,3 +101,32 @@ flowchart TB
 - `crustdata_calls` and `llm_calls` are the cost log: every call, its purpose, its credits or tokens and its dollars. Prompts and responses are stored with each model call.
 - `stage_results` and `responses` and `response_screens` are append-only too. A held answer is decided by adding a new row, never by editing text.
 - SQLite triggers block UPDATE and DELETE on all of these tables.
+
+
+## Retries, exactly-once actions, limits and the cost ledger (Dev, 2026-11-22)
+
+```mermaid
+flowchart LR
+  subgraph API["API process (restarted in place if killed)"]
+    RS[run_stage: reuse a finished stage] --> LIM{time, credit and model-spend limits}
+    LIM -- over --> LR[LIMIT_REACHED with reason]
+    LIM -- ok --> CD[Crustdata client: 2 retries on network errors]
+    LIM -- ok --> LLM[model wrapper: 1 retry on an invalid reply]
+    APP[customer approves invitations] --> ACT[(actions: key PENDING)]
+    ACT --> SMTP[send through the allowlist gate, Message-ID = key]
+    SMTP --> DONE[(actions: DONE)]
+  end
+  CD --> COST[(crustdata_calls: credits)]
+  LLM --> COST2[(llm_calls: tokens, USD)]
+  COST & COST2 --> VIEW[cost per case in USD and INR]
+  START[startup] --> RES[resume: finish APPROVED sends, continue DRAFT and SOURCING cases]
+  RES -->|PENDING action| MB{message with this key in the mailbox?}
+  MB -- yes --> DONE
+  MB -- no --> SMTP
+  MB -- cannot read --> NO[FAILED, not sent again]
+```
+
+- **Retries:** Crustdata network errors are retried twice, then logged; a failed enrichment keeps the first-pass ranking. A model reply that fails validation is retried once with the error shown. A failed case can be retried from its last finished stage (`POST /cases/{id}/retry`, operator).
+- **Exactly once:** every email has an `actions` row keyed by `sha256(case | send_invitation | outreach id)`. A `DONE` action is never repeated; a `PENDING` one is resolved against the mailbox.
+- **Limits:** checked before every stage and every external call; a breach stops the case as `LIMIT_REACHED` and names the limit.
+- **Cost ledger:** `crustdata_calls` and `llm_calls` record every call with its credits or tokens and dollars; the case view converts to rupees. No payment ledger exists: this build takes no payment.
