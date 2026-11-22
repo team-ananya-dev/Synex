@@ -46,13 +46,28 @@ def validate(draft: dict, name: str | None) -> None:
         raise ValueError("keep the email under 150 words")
 
 
+def spread_by_company(panel: list[dict], n: int) -> list[dict]:
+    """The n panel members to invite, spread across companies: the best person from each company first (companies
+    ordered by their best-ranked person), then a second person from each, and so on. One company cannot fill
+    every seat while others were searched, so the customer hears from more than one employer's former staff."""
+    queues: dict[object, list[dict]] = {}
+    for person in panel:                       # panel is best first, so each queue is too
+        queues.setdefault(person.get("company_id"), []).append(person)
+    out: list[dict] = []
+    while len(out) < n and any(queues.values()):
+        for company in list(queues):           # dict order = order of each company's best person
+            if queues[company] and len(out) < n:
+                out.append(queues[company].pop(0))
+    return out
+
+
 def write_drafts(conn, case_id: str, subs: list[dict], panels: dict[str, list[dict]], screens: dict[str, list[dict]],
                  company_names: dict[str, str], per_subquestion: int) -> list[dict]:
     """panels: sub-question index -> ranked panel. One draft per person, listing every sub-question they were picked for."""
     chosen: dict[int, dict] = {}
     for sq in subs:
         idx = str(sq["index"])
-        for person in panels.get(idx, [])[:per_subquestion]:
+        for person in spread_by_company(panels.get(idx, []), per_subquestion):
             entry = chosen.setdefault(person["person_id"], {"person": person, "subs": []})
             entry["subs"].append(sq)
     out = []

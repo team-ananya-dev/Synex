@@ -19,6 +19,7 @@ from ..core.events import append_event
 
 BASE_URL = "https://api.crustdata.com"
 API_VERSION = "2025-11-01"
+RATE_LIMIT_WAITS = (2, 4, 8, 15, 30, 30)  # seconds before each of up to 6 retries of a 429
 LIMITED_ENDPOINTS = {"/person/search", "/company/search", "/job/search"}
 
 
@@ -88,8 +89,10 @@ class CrustdataClient:
                     call_id = self._log(endpoint, body, purpose, 0, 0.0, latency, None, f"{type(e).__name__}: {e}", False)[1]
                     raise CrustdataError(0, f"{type(e).__name__}: {e}", call_id) from e
                 time.sleep(1 + attempt)
-        if resp.status_code == 429:
-            time.sleep(float(resp.headers.get("Retry-After", 3)))
+        for wait in RATE_LIMIT_WAITS:  # rate limited: pause (longer if Crustdata says so) and ask again; demo mode fires many calls
+            if resp.status_code != 429:
+                break
+            time.sleep(max(wait, float(resp.headers.get("Retry-After") or 0)))
             resp = self._http.post(endpoint, json=body)
         latency = int((time.monotonic() - started) * 1000)
         credits = float(resp.headers.get("X-Credits-Used") or 0)

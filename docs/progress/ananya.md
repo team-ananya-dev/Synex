@@ -236,3 +236,12 @@ Next: Dev reviews; demo-mode rehearsal with a fresh question and teammates as ex
 Decisions: none new
 Blocked on: nothing.
 Contracts touched: none
+
+## 2026-11-22 16:41 IST ananya spread-panel-rate-limit
+Done: two fixes found by the demo-mode dry run and Ananya's review of the skincare case. (1) `server/app/stages/s6_outreach_writer.py` (Dev's file): the panel is now spread across companies (the best person from each searched company first, then a second from each), so one company cannot fill every seat; function `spread_by_company`. (2) `server/app/crustdata/client.py` (Dev's file): a rate-limited (429) call now waits and retries up to 6 times with growing pauses (2, 4, 8, 15, 30, 30 s, longer if Crustdata says so) instead of once after 3 s. Demo mode fired about 14 calls in under a minute and a 429 failed the whole case at stage 3. Three tests added to `server/tests/test_gaps.py`; 135 pass.
+Found: sub-question text does not mention the company by design (companies are listed on the Companies line; the named one is marked "(named)"). All experts from one company happened because dev mode searches 1 company per sub-question and the named company goes first; demo mode searches 3.
+In progress: demo-mode dry run of the video question (case 4c18096678e1, retrying after the 429).
+Next: demo video; walkthroughs.
+Decisions: edited Dev's s6 and Crustdata client at Ananya's request; told in `docs/inbox/dev/2026-11-22-ananya-gap-fixes.md` (appended).
+Blocked on: nothing.
+Contracts touched: none.

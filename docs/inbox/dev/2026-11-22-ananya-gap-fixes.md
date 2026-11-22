@@ -16,3 +16,8 @@ Ananya asked me not to wait, so these went straight in. Please read before you t
 
 ## Not changed
 Panel cards and invitations (`views.py`) still show exact titles before anyone answers. If you want the anonymity rule there too, `anonymise_roles` takes any list of dicts with `role` and `person_id`.
+
+## Added later (demo-mode dry run)
+- `server/app/stages/s6_outreach_writer.py`: `spread_by_company` picks the panel round-robin by company (each company's best first). Before, `panels[idx][:n]` could be all one company (Ananya's skincare case: every expert from the named brand).
+- `server/app/crustdata/client.py`: 429 handling now retries up to 6 times (`RATE_LIMIT_WAITS`, honours Retry-After). A demo-mode case failed in stage 3 with `Rate limit exceeded for this endpoint` after about 14 calls in under a minute. If Crustdata still rate-limits during the finals, consider also pacing the per-company searches.
+- Tests: three more in `server/tests/test_gaps.py`.

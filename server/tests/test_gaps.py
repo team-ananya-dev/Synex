@@ -96,3 +96,48 @@ def test_different_aspects_is_not_reported_as_split():
     out = s8_result._attach(result, summary, "f")
     assert out["subquestions"][0]["label"] == "multiple sources, different aspects"
     assert out["subquestions"][0]["label_basis"] == "model"
+
+
+def test_panel_is_spread_across_companies_before_a_second_person_from_one():
+    from app.stages.s6_outreach_writer import spread_by_company
+    panel = [{"person_id": i, "company_id": c} for i, c in [(1, "A"), (2, "A"), (3, "A"), (4, "B"), (5, "C"), (6, "B")]]
+    assert [p["person_id"] for p in spread_by_company(panel, 3)] == [1, 4, 5]          # one per company
+    assert [p["person_id"] for p in spread_by_company(panel, 5)] == [1, 4, 5, 2, 6]    # then second picks, best first
+    assert [p["person_id"] for p in spread_by_company(panel, 10)] == [1, 4, 5, 2, 6, 3]
+    only_a = [{"person_id": i, "company_id": "A"} for i in range(4)]
+    assert [p["person_id"] for p in spread_by_company(only_a, 2)] == [0, 1]            # one company: plain top 2
+    assert spread_by_company([], 3) == []
+
+
+def test_rate_limited_crustdata_call_waits_and_succeeds(monkeypatch):
+    import httpx
+    from app.core import db as _db
+    from app.crustdata import client as cd
+    waits, seen = [], {"n": 0}
+    monkeypatch.setattr(cd.time, "sleep", lambda s: waits.append(s))
+
+    def handler(request):
+        seen["n"] += 1
+        if seen["n"] <= 3:
+            return httpx.Response(429, json={"error": {"type": "rate_limit_error"}})
+        return httpx.Response(200, json={"profiles": []}, headers={"X-Credits-Used": "1.5"})
+
+    conn = _db.connect(":memory:")
+    client = cd.CrustdataClient(conn, case_id="c1", transport=httpx.MockTransport(handler), api_key="test")
+    data, call_id = client.post("/person/search", {"filters": {}}, "t")
+    assert data == {"profiles": []} and seen["n"] == 4 and waits == [2, 4, 8]          # three pauses, growing
+    assert conn.execute("SELECT COUNT(*) c FROM crustdata_calls").fetchone()["c"] == 1  # only the final answer is logged
+
+
+def test_rate_limit_that_never_clears_still_fails_with_the_call_logged(monkeypatch):
+    import httpx
+    import pytest
+    from app.core import db as _db
+    from app.crustdata import client as cd
+    monkeypatch.setattr(cd.time, "sleep", lambda s: None)
+    conn = _db.connect(":memory:")
+    client = cd.CrustdataClient(conn, case_id="c1", api_key="test",
+                                transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": "rate"})))
+    with pytest.raises(cd.CrustdataError) as e:
+        client.post("/person/search", {"filters": {}}, "t")
+    assert e.value.status == 429
