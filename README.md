@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧭 S Y N E X
+# S Y N E X
 
 ### GLG, rebuilt as software.
 
@@ -22,29 +22,29 @@
 
 ---
 
-## 🎬 Main video
+## Main video
 
 <div align="center">
 
 [![Synex main video](https://img.youtube.com/vi/cN9uOZELZJ4/maxresdefault.jpg)](https://youtu.be/cN9uOZELZJ4)
 
-**▶ [Watch on YouTube](https://youtu.be/cN9uOZELZJ4)**
+**[Watch on YouTube](https://youtu.be/cN9uOZELZJ4)**
 
 </div>
 
-## 🖥️ Live walkthrough
+## Live walkthrough
 
 <div align="center">
 
 [![Synex live walkthrough](https://img.youtube.com/vi/p9qn2XVP5Eg/maxresdefault.jpg)](https://www.youtube.com/watch?v=p9qn2XVP5Eg)
 
-**▶ [Watch on YouTube](https://www.youtube.com/watch?v=p9qn2XVP5Eg)**
+**[Watch on YouTube](https://www.youtube.com/watch?v=p9qn2XVP5Eg)**
 
 </div>
 
 ---
 
-## ⚡ The idea
+## The idea
 
 Expert networks (GLG, AlphaSights, Guidepoint) charge by the call hour to connect you with former insiders. Synex does the whole job in software:
 
@@ -52,13 +52,13 @@ Expert networks (GLG, AlphaSights, Guidepoint) charge by the call hour to connec
 
 | | |
 | --- | --- |
-| 🔎 **Finds** | former employees in live Crustdata people data |
-| 🛡️ **Screens** | every person and every answer with fixed rules, written in code |
-| ✉️ **Invites** | an anonymised panel, only after a human approves |
-| 📑 **Delivers** | sources, confidence, and a summary where every sentence cites an answer |
-| 🤷 **Admits** | "cannot verify" when the data is missing. It never guesses |
+| **Finds** | former employees in live Crustdata people data |
+| **Screens** | every person and every answer with fixed rules, written in code |
+| **Invites** | an anonymised panel, only after a human approves |
+| **Delivers** | sources, confidence, and a summary where every sentence cites an answer |
+| **Admits** | "cannot verify" when the data is missing. It never guesses |
 
-## 🔄 How it works
+## How it works
 
 ```mermaid
 flowchart LR
@@ -74,7 +74,7 @@ flowchart LR
 
 Eight stages: question screen, plan, sourcing, people screen, ranking, invitations, response screen, result. Details in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## 🧱 What makes it trustworthy
+## What makes it trustworthy
 
 - **Rules in code, not prompts.** Each decision names the Crustdata field, value and record date it used.
 - **Models propose, code verifies.** Evidence quotes, redactions and citations are checked in code. Anything unverified is dropped.
@@ -83,14 +83,14 @@ Eight stages: question screen, plan, sourcing, people screen, ranking, invitatio
 - **Everything logged.** A hash-chained audit trail and a cost log for every Crustdata and model call.
 - **Anonymous to the customer.** No names, links, cities or emails.
 
-## 🧪 Honest limits
+## Honest limits
 
 - **Teammates play the experts.** Mail goes only to a two-address allowlist through a local Mailpit inbox, never to a real person.
 - **No payments.** The case page shows a quoted price in rupees, labelled "no payment taken".
 - **Free hosting.** On Render's free plan a redeploy or idle sleep empties the database.
 - **Not built:** the closed-period rule, a do-not-contact table, voice interviews and period validity.
 
-## 🚀 Run it
+## Run it
 
 Needs Python 3, [uv](https://github.com/astral-sh/uv), Node 20+, and [Mailpit](https://github.com/axllent/mailpit).
 
@@ -109,7 +109,7 @@ cd server && .venv/bin/python -m pytest -q   # tests, no network, no spend
 server/scripts/kill_test.sh                  # kill mid-send, one email per invitation
 ```
 
-## 🗂️ Repo
+## Repo
 
 ```
 server/     FastAPI: stages 1 to 8, compliance rules, mail gate, audit chain, PDF report
@@ -118,7 +118,7 @@ contracts/  agreed API, event and enum definitions (append-only)
 docs/       architecture, plan, progress logs
 ```
 
-## 🙏 Credits
+## Credits
 
 **Backend:** [FastAPI](https://github.com/fastapi/fastapi), [Uvicorn](https://github.com/encode/uvicorn), [httpx](https://github.com/encode/httpx), [pydantic](https://github.com/pydantic/pydantic), [pytest](https://github.com/pytest-dev/pytest), [ReportLab](https://github.com/MrBitBucket/reportlab-mirror), [pypdf](https://github.com/py-pdf/pypdf), [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python), [uv](https://github.com/astral-sh/uv).
 **Frontend:** [Next.js](https://github.com/vercel/next.js), [React](https://github.com/facebook/react), [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss), [TypeScript](https://github.com/microsoft/TypeScript), [ESLint](https://github.com/eslint/eslint).
