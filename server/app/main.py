@@ -1,10 +1,10 @@
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core import config
+from .core import config, keys
 from .actions.routes import router as approvals_router
 from .core.operator_auth import require_operator_key
 from .jobs.audit_routes import router as audit_router
@@ -26,6 +26,15 @@ async def lifespan(_app):
 
 app = FastAPI(title="Synex", lifespan=lifespan)
 # the Next.js app runs on another port in development
+@app.middleware("http")
+async def remember_keys(request: Request, call_next):
+    """The browser's own API keys ride along on every request; hold them (memory only) for the case in the path."""
+    cid = keys.case_id_from_path(request.url.path)
+    if cid:
+        keys.remember(cid, keys.from_headers(request.headers))
+    return await call_next(request)
+
+
 app.middleware("http")(require_operator_key)   # added before CORS, so CORS wraps it and a 401 still carries CORS headers
 app.add_middleware(CORSMiddleware, allow_origins=config.web_origins(),
                    allow_methods=["*"], allow_headers=["*"])
@@ -37,6 +46,14 @@ app.include_router(expert_router)
 app.include_router(result_router)
 
 
+@app.exception_handler(keys.MissingKey)
+async def missing_key(_request: Request, exc: keys.MissingKey):
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"detail": str(exc), "code": "missing_key"}, status_code=400)
+
+
 @app.get("/health")
 def health():
-    return {"ok": True, "demo_mode": config.demo_mode()}
+    # which keys the server already has in .env (a local clone): the web page asks visitors only for the missing ones
+    return {"ok": True, "demo_mode": config.demo_mode(),
+            "server_keys": {"anthropic": bool(keys._find("anthropic", None)[0]), "crustdata": bool(keys._find("crustdata", None)[0])}}

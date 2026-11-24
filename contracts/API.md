@@ -200,3 +200,7 @@ Makes the written parts exist for the current accepted answers: the per-sub-ques
 `application/pdf`, `Content-Disposition: attachment; filename="synex-report-<id>.pdf"`. Built from the case's current data, using the stored overview only if it was written for exactly the current answers (otherwise the report says a written overview was not available). `409` until one answer is accepted, `404` unknown case. Sections: cover, executive summary, findings by sub-question, appendices A to E (method, experts who answered, people screening, audit trail and cost, limitations).
 
 New events (`EVENTS.md`): `report.overview_written` `{"llm_call_id", "findings", "dropped_uncited"}` and `report.generated` `{"bytes", "with_overview", "summary_status", "answers_used"}`. Overview is stored append-only in `stage_results` as `s9_report_overview`, keyed on the answers and summaries it used.
+
+## Bring your own key (added 2026-11-24, append-only)
+
+Every request may carry `X-Anthropic-Key` and `X-Crustdata-Key`. The server holds them in memory per case and never stores them. A key not sent falls back to `SYNEX_ANTHROPIC_KEY` / `CRUSTDATA_API_KEY` in `.env`. `POST /cases` needs an Anthropic key; `approve-plan` and `retry` need both. A missing key returns `400 {"detail": "...", "code": "missing_key"}`. `GET /health` adds `server_keys: {anthropic, crustdata}` (booleans, never the keys).

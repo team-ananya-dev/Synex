@@ -69,7 +69,7 @@ class CrustdataClient:
             timeout=60,
             transport=transport,
             headers={
-                "Authorization": f"Bearer {api_key or config.crustdata_key()}",
+                "Authorization": f"Bearer {api_key or config.crustdata_key(case_id)}",
                 "x-api-version": API_VERSION,
             },
         )

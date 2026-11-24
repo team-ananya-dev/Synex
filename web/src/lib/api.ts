@@ -262,11 +262,52 @@ export const setOperatorKey = (key: string) => {
   }
 };
 
+// The visitor's own API keys. sessionStorage: they live in this tab only and are gone when it closes. They are sent as
+// headers with each request and held by the server in memory for the case; never stored on the server.
+const ANTHROPIC_STORE = "synex_anthropic_key";
+const CRUSTDATA_STORE = "synex_crustdata_key";
+export type UserKeys = { anthropic: string; crustdata: string };
+export const userKeys = (): UserKeys => {
+  try {
+    if (typeof window === "undefined") return { anthropic: "", crustdata: "" };
+    return {
+      anthropic: window.sessionStorage.getItem(ANTHROPIC_STORE) ?? "",
+      crustdata: window.sessionStorage.getItem(CRUSTDATA_STORE) ?? "",
+    };
+  } catch {
+    return { anthropic: "", crustdata: "" };
+  }
+};
+export const setUserKeys = (k: UserKeys) => {
+  try {
+    for (const [store, v] of [[ANTHROPIC_STORE, k.anthropic], [CRUSTDATA_STORE, k.crustdata]] as const) {
+      if (v.trim()) window.sessionStorage.setItem(store, v.trim());
+      else window.sessionStorage.removeItem(store);
+    }
+    window.dispatchEvent(new Event("synex-keys"));
+  } catch {
+    /* storage blocked: the keys are simply not remembered */
+  }
+};
+const keyHeaders = (): Record<string, string> => {
+  const k = userKeys();
+  return { ...(k.anthropic ? { "X-Anthropic-Key": k.anthropic } : {}), ...(k.crustdata ? { "X-Crustdata-Key": k.crustdata } : {}) };
+};
+export type ServerKeys = { anthropic: boolean; crustdata: boolean };
+export const serverKeys = async (): Promise<ServerKeys> => {
+  try {
+    const h = await (await fetch(`${API_BASE}/health`, { cache: "no-store" })).json();
+    return h.server_keys ?? { anthropic: false, crustdata: false };
+  } catch {
+    return { anthropic: false, crustdata: false };
+  }
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const key = operatorKey();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(key ? { "X-Operator-Key": key } : {}), ...init?.headers },
+    headers: { "Content-Type": "application/json", ...(key ? { "X-Operator-Key": key } : {}), ...keyHeaders(), ...init?.headers },
     cache: "no-store",
   });
   if (!res.ok) {
@@ -333,7 +374,7 @@ export const api = {
   prepareReport: (id: string) =>
     request<{ case_id: string; summary: string; overview: string; overview_error: string | null; ready: boolean }>(`/customer/cases/${id}/report/prepare`, { method: "POST" }),
   downloadReport: async (id: string): Promise<Blob> => {
-    const res = await fetch(`${API_BASE}/customer/cases/${id}/report.pdf`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}/customer/cases/${id}/report.pdf`, { cache: "no-store", headers: keyHeaders() });
     if (!res.ok) {
       let detail = res.statusText;
       try { detail = (await res.json()).detail ?? detail; } catch { /* not JSON */ }

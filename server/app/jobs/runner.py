@@ -12,7 +12,7 @@ import time
 import uuid
 from datetime import date, datetime, timezone
 
-from ..core import config, db, llm
+from ..core import config, db, keys, llm
 from ..core.events import append_event
 from ..crustdata import company as company_api
 from ..crustdata import people as people_api
@@ -72,7 +72,7 @@ def run_stage(conn, case_id: str, stage: str, fn):
     try:
         result = fn()
     except Exception as e:
-        append_event(conn, case_id, "stage.failed", {"stage": stage, "error": f"{type(e).__name__}: {e}"})
+        append_event(conn, case_id, "stage.failed", {"stage": stage, "error": keys.scrub(f"{type(e).__name__}: {e}", case_id)})
         raise StageFailed(f"{stage}: {e}") from e
     conn.execute("INSERT INTO stage_results (case_id, stage, result, created_at) VALUES (?,?,?,?)",
                  (case_id, stage, json.dumps(result, default=str), _now()))
@@ -95,7 +95,7 @@ def _guarded(case_id: str, phase) -> None:
         else:
             set_state(conn, case_id, "FAILED")
     except Exception as e:  # nothing may leave a case stuck in a running state
-        append_event(conn, case_id, "stage.failed", {"stage": "runner", "error": f"{type(e).__name__}: {e}"})
+        append_event(conn, case_id, "stage.failed", {"stage": "runner", "error": keys.scrub(f"{type(e).__name__}: {e}", case_id)})
         set_state(conn, case_id, "FAILED")
     finally:
         conn.close()

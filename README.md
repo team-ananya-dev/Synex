@@ -88,6 +88,7 @@ Eight stages: question screen, plan, sourcing, people screen, ranking, invitatio
 - **Teammates play the experts.** Mail goes only to a two-address allowlist through a local Mailpit inbox, never to a real person.
 - **No payments.** The case page shows a quoted price in rupees, labelled "no payment taken".
 - **Free hosting.** On Render's free plan a redeploy or idle sleep empties the database.
+- **Your own keys on the hosted site.** The hosted site carries no API keys. After the landing page, the Ask page asks for your Anthropic and Crustdata keys. They are kept in your browser tab (`sessionStorage`) and sent with your requests. The server holds them in memory for your case only and never writes them to the database, the audit trail or the logs, so a server restart means entering them again.
 - **Not built:** the closed-period rule, a do-not-contact table, voice interviews and period validity.
 
 ## Run it
@@ -95,14 +96,14 @@ Eight stages: question screen, plan, sourcing, people screen, ranking, invitatio
 Needs Python 3, [uv](https://github.com/astral-sh/uv), Node 20+, and [Mailpit](https://github.com/axllent/mailpit).
 
 ```bash
-cp .env.example .env     # add CRUSTDATA_API_KEY and SYNEX_ANTHROPIC_KEY
+cp .env.example .env     # add CRUSTDATA_API_KEY and SYNEX_ANTHROPIC_KEY (your own)
 cd server && uv venv .venv && uv pip install -r requirements.txt --python .venv/bin/python
 SYNEX_DEV_CACHE=1 .venv/bin/uvicorn app.main:app --port 8000
 mailpit                                      # inbox at http://localhost:8025
 cd ../web && npm install && npm run dev      # http://localhost:3000
 ```
 
-Use `SYNEX_DEMO=1` for the demo (no cache, no limits). Never set `ANTHROPIC_API_KEY`.
+When both keys are in `.env`, the Ask page does not ask for them. If one is missing, the page asks for that one. Use `SYNEX_DEMO=1` for the demo (no cache, no limits). Never set `ANTHROPIC_API_KEY`.
 
 ```bash
 cd server && .venv/bin/python -m pytest -q   # tests, no network, no spend

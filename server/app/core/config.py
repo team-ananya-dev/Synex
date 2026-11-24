@@ -38,11 +38,10 @@ def db_path() -> Path:
     return Path(os.environ.get("SYNEX_DB", ROOT / "data" / "synex.db"))
 
 
-def crustdata_key() -> str:
-    key = os.environ.get("CRUSTDATA_API_KEY", "").strip()
-    if not key:
-        raise RuntimeError("CRUSTDATA_API_KEY is not set in .env")
-    return key
+def crustdata_key(case_id: str | None = None) -> str:
+    """The case's own key if its user sent one, else CRUSTDATA_API_KEY from .env (a local clone)."""
+    from . import keys
+    return keys.crustdata(case_id)
 
 
 def dev_max_subquestions() -> int | None:

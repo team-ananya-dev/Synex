@@ -165,3 +165,10 @@ Common fixes:
 ## What an agent can do for you here
 
 Once you have the keys in `.env`, an agent can write the server and web skeleton, the Crustdata client, the model wrapper, the mail sender, the health and wiring tests, and the `.gitignore`. It cannot create accounts, fund the key, approve logins or press the approve button in the browser.
+
+
+## Keys: local clone or hosted site
+
+- **Run it locally.** Copy `.env.example` to `.env` and fill in `SYNEX_ANTHROPIC_KEY` and `CRUSTDATA_API_KEY` with your own keys. The server uses them and the Ask page does not ask for any key. A key missing from `.env` is asked for on the Ask page instead.
+- **Host it (for example on Render).** Do not set either key on the server. Each visitor enters their own two keys on the Ask page, after the landing page. The keys stay in that browser tab, travel as `X-Anthropic-Key` and `X-Crustdata-Key` headers, and are held in server memory per case. They are never stored. After a server restart a visitor enters them again.
+- **Taking an old shared key offline.** Delete `SYNEX_ANTHROPIC_KEY` and `CRUSTDATA_API_KEY` from the host's environment, then revoke them in the Anthropic Console and the Crustdata dashboard. Deleting from the host alone does not invalidate a key.

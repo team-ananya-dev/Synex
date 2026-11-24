@@ -3,12 +3,12 @@ import asyncio
 import json
 from typing import Callable
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..actions import pricing, queue
-from ..core import config, db
+from ..core import config, db, keys
 from ..core.events import append_event
 from . import runner, views
 
@@ -33,10 +33,13 @@ def _read(fn, *args):
 
 
 @router.post("/cases", status_code=201)
-def create_case(body: NewCase, tasks: BackgroundTasks):
+def create_case(body: NewCase, tasks: BackgroundTasks, request: Request):
+    given = keys.from_headers(request.headers)
+    keys.require(None, given, "anthropic")   # refuse before a case exists, so nothing is left half-made
     conn = db.connect()
     case_id = runner.create_case(conn, body.question.strip())
     conn.close()
+    keys.remember(case_id, given)
     tasks.add_task(runner.run_case, case_id)
     return {"id": case_id, "state": "DRAFT"}
 
@@ -53,8 +56,9 @@ def get_case(case_id: str):
 
 
 @router.post("/cases/{case_id}/retry")
-def retry_case(case_id: str, tasks: BackgroundTasks):
+def retry_case(case_id: str, tasks: BackgroundTasks, request: Request):
     """Operator: continue a FAILED case from its last finished stage. Finished stages are reused, not re-run."""
+    keys.require(case_id, keys.from_headers(request.headers), "anthropic", "crustdata")
     conn = db.connect()
     try:
         case = conn.execute("SELECT state FROM cases WHERE id=?", (case_id,)).fetchone()
@@ -80,9 +84,10 @@ def get_customer_case(case_id: str):
 
 
 @router.post("/customer/cases/{case_id}/approve-plan")
-def approve_plan(case_id: str, body: PlanApproval, tasks: BackgroundTasks):
+def approve_plan(case_id: str, body: PlanApproval, tasks: BackgroundTasks, request: Request):
     """The customer's click: approves the plan and the panel size. Sourcing starts only after this, so no Crustdata
     credit is spent before the customer agrees. The quoted price is shown for information; no payment is taken."""
+    keys.require(case_id, keys.from_headers(request.headers), "anthropic", "crustdata")
     conn = db.connect()
     try:
         case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()

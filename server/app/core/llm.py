@@ -14,7 +14,7 @@ from typing import Callable
 
 import anthropic
 
-from . import config
+from . import config, keys
 from .events import append_event
 
 SMALL_MODEL = os.environ.get("SYNEX_SMALL_MODEL", "claude-haiku-4-5-20251001")
@@ -60,10 +60,9 @@ def call_json(
     client: anthropic.Anthropic | None = None,
 ) -> tuple[dict, str]:
     """Return (validated reply, call_id of the accepted attempt)."""
+    own_key = False   # True when the user's own key pays: the shared model budget is for the server's key only
     if client is None:
-        key = os.environ.get("SYNEX_ANTHROPIC_KEY", "").strip()  # a pasted key can carry a newline, which breaks the header
-        if not key:
-            raise RuntimeError("SYNEX_ANTHROPIC_KEY is not set in .env")
+        key, own_key = keys.anthropic(case_id)
         client = anthropic.Anthropic(api_key=key)
 
     in_price, out_price = _price(model)
@@ -72,7 +71,7 @@ def call_json(
     error = None
 
     for attempt in (1, 2):
-        if spent_usd(conn) >= BUDGET_USD:
+        if not own_key and spent_usd(conn) >= BUDGET_USD:
             raise BudgetExceeded(f"model spend {spent_usd(conn):.2f} USD reached the {BUDGET_USD} USD budget")
         if case_id:
             case_spent = float(conn.execute("SELECT COALESCE(SUM(cost_usd),0) c FROM llm_calls WHERE case_id=?", (case_id,)).fetchone()["c"])

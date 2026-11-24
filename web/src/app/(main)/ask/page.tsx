@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { api, type CaseSummary } from "@/lib/api";
+import { api, serverKeys, setUserKeys, userKeys, type CaseSummary, type ServerKeys } from "@/lib/api";
 import { StateBadge } from "@/components/StateBadge";
 
 // Example questions only fill the text box; nothing about them is special-cased anywhere.
@@ -34,6 +34,14 @@ function AskForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
+  const [mine, setMine] = useState(userKeys);
+  const [server, setServer] = useState<ServerKeys | null>(null);   // keys the server already has (a local clone with .env)
+
+  useEffect(() => {
+    serverKeys().then(setServer);
+  }, []);
+  const needAnthropic = server !== null && !server.anthropic && !mine.anthropic.trim();
+  const needCrustdata = server !== null && !server.crustdata && !mine.crustdata.trim();
 
   useEffect(() => {
     api.listCustomerCases().then(setCases).catch((e) => setError(`Could not reach the server: ${e.message}`));
@@ -52,7 +60,13 @@ function AskForm() {
     }
   }
 
-  const disabled = busy || question.trim().length < 5;
+  const disabled = busy || question.trim().length < 5 || needAnthropic || needCrustdata;
+  const showKeys = server !== null && (!server.anthropic || !server.crustdata);
+  const update = (k: Partial<typeof mine>) => {
+    const next = { ...mine, ...k };
+    setMine(next);
+    setUserKeys(next);
+  };
 
   return (
     <div className="flex flex-col gap-11">
@@ -82,6 +96,43 @@ function AskForm() {
             </button>
           ))}
         </div>
+        {showKeys && (
+          <fieldset className="flex flex-col gap-3 rounded-lg border border-zinc-800 p-4">
+            <legend className="px-1 text-sm font-medium">Your API keys</legend>
+            <p className="text-[13px] leading-relaxed text-zinc-400">
+              This site runs on your own keys, so the research is billed to your accounts. They stay in this browser tab
+              (cleared when you close it) and are sent only with your requests. The server keeps them in memory while your
+              case runs and never saves them.
+            </p>
+            {!server.anthropic && (
+              <label className="flex flex-col gap-1 text-[13px] text-zinc-400">
+                Anthropic API key
+                <input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={mine.anthropic}
+                  onChange={(e) => update({ anthropic: e.target.value })}
+                  placeholder="sk-ant-..."
+                  className="rounded-md border border-zinc-700 bg-panel px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-zinc-500"
+                />
+              </label>
+            )}
+            {!server.crustdata && (
+              <label className="flex flex-col gap-1 text-[13px] text-zinc-400">
+                Crustdata API key
+                <input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={mine.crustdata}
+                  onChange={(e) => update({ crustdata: e.target.value })}
+                  className="rounded-md border border-zinc-700 bg-panel px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-zinc-500"
+                />
+              </label>
+            )}
+          </fieldset>
+        )}
         <div className="flex flex-wrap items-center gap-3.5">
           <button
             type="submit"
